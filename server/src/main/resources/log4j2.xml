@@ -1,0 +1,28 @@
+<Configuration status="warn">
+    <Appenders>
+        <!-- Console appender configuration -->
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout>
+                <pattern>
+                    %highlight{[%d{HH:mm:ss}] [%p]} - %m%n
+                </pattern>
+            </PatternLayout>
+        </Console>
+
+        <!-- RollingFile appender configuration -->
+        <RollingFile name="RollingFile" fileName="logs/latest.log" filePattern="logs/%d{yyyy-MM-dd-HH-mm-ss}.log">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%p] - %m%n" />
+            <Policies>
+                <OnStartupTriggeringPolicy />
+            </Policies>
+            <DefaultRolloverStrategy max="20" />
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <!-- Root logger referring to console and file appenders -->
+        <Root level="info" additivity="false">
+            <AppenderRef ref="console" />
+            <AppenderRef ref="RollingFile" />
+        </Root>
+    </Loggers>
+</Configuration>

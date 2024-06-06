@@ -1,0 +1,11 @@
+network:
+  max_connections: 10
+
+data:
+  save_interval: 600     # seconds (10 minutes)
+  cache_expiration: 600  # seconds (10 minutes)
+  save_parallelism: 100  # number of active coroutines for saving data to the database
+
+database:
+  username: nikdekur
+  password: e7yRu1XfZoIgbK0V

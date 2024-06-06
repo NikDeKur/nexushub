@@ -1,0 +1,6 @@
+ktor:
+  application:
+    modules:
+      - org.ndk.nexushub.NexusHubKt.module
+  deployment:
+    port: 8085

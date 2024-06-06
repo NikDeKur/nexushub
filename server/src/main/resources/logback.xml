@@ -1,0 +1,17 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%d{YYYY-MM-dd HH:mm:ss.SSS}] [%thread] [%level] [%logger{36}]: %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+    <logger name="org.eclipse.jetty" level="INFO"/>
+    <logger name="io.netty" level="INFO"/>
+    <logger name="org.mongodb.driver.client" level="WARN"/>
+    <logger name="org.mongodb.driver.connection" level="WARN"/>
+    <logger name="org.mongodb.driver.cluster" level="WARN"/>
+    <logger name="org.mongodb.driver.protocol.command" level="WARN"/>
+    <logger name="org.mongodb.driver.operation" level="WARN"/>
+</configuration>
