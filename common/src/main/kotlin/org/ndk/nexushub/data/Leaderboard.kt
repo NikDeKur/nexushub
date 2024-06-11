@@ -18,9 +18,11 @@ open class Leaderboard(size: Int = 10) {
     }
 
     fun addEntry(holderId: String, value: Double) {
-        val position = entries.size + 1L
-        entries.add(LeaderboardEntry(position, holderId, value))
+        val position = entries.size
+        entries.add(LeaderboardEntry(position.toLong(), holderId, value))
     }
+
+    fun isEmpty() = entries.isEmpty()
 
     fun clear() {
         entries.clear()

@@ -4,10 +4,13 @@ package org.ndk.nexushub.scope
 
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
-import com.google.common.cache.RemovalCause
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withPermit
 import org.ndk.klib.forEachSafe
+import org.ndk.klib.recordTiming
+import org.ndk.klib.removeEmpty
 import org.ndk.nexushub.NexusHub.blockingScope
 import org.ndk.nexushub.NexusHub.config
 import org.ndk.nexushub.NexusHub.logger
@@ -18,8 +21,6 @@ import org.ndk.nexushub.database.scope.ScopeCollection
 import org.ndk.nexushub.database.scope.ScopeDAO
 import org.ndk.nexushub.database.scope.ScopesCollection
 import org.ndk.nexushub.network.NexusData
-import org.ndk.nexushub.scope.ScopesManager.saveParallelismSemaphore
-import org.ndk.nexushub.util.logTiming
 import java.util.concurrent.TimeUnit
 
 data class Scope(
@@ -35,12 +36,6 @@ data class Scope(
     val cache: Cache<String, NexusData> = CacheBuilder.newBuilder()
         .expireAfterWrite(cacheExpiration, TimeUnit.SECONDS)
         .expireAfterAccess(cacheExpiration, TimeUnit.SECONDS)
-        .removalListener {
-            if (it.cause != RemovalCause.EXPIRED || it.cause != RemovalCause.SIZE) return@removalListener
-            val holderId = it.key!!
-            val data = it.value!!
-            queueSave(holderId, data)
-        }
         .maximumSize(cacheSize)
         .build()
 
@@ -54,8 +49,9 @@ data class Scope(
         return data
     }
 
-    fun setData(holderId: String, data: Map<String, Any>) {
-        cache.put(holderId, data)
+
+    suspend fun setDataSync(holderId: String, data: NexusData) {
+        queueDataSet(holderId, data).await()
     }
 
 
@@ -67,11 +63,13 @@ data class Scope(
      * @param holderId holder id
      * @param data data to save
      */
-    fun queueSave(holderId: String, data: NexusData) {
-        blockingScope.launch {
-            saveParallelismSemaphore.withPermit {
+    fun queueDataSet(holderId: String, data: NexusData): Deferred<Unit> {
+        return ScopesManager.saveScope.async {
+            ScopesManager.saveLimiter.withPermit {
                 try {
-                    collection.save(holderId, data)
+                    val clean = data.removeEmpty(maps = true, collections = true)
+                    cache.put(holderId, clean)
+                    collection.save(holderId, clean)
                 } catch (e: Exception) {
                     logger.error("Error while saving data", e)
                 }
@@ -81,19 +79,17 @@ data class Scope(
 
 
 
-    suspend fun getLeaderboard(field: String, limit: Int): Leaderboard {
-        val leaderboard = logTiming("getLeaderboard") {
+    suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard {
+        val leaderboard = logger.recordTiming(name = "getLeaderboard") {
+            val rawLeaderboard = collection.getLeaderboard(field, startFrom, limit)
 
-
-            val rawLeaderboard = collection.getLeaderboard(field, limit)
+            logger.info("Raw leaderboard: $rawLeaderboard")
 
             ensureIndexAsync(field)
 
             val leaderboard = Leaderboard(rawLeaderboard.size)
 
-            rawLeaderboard.forEachSafe ({
-                logger.error("Exception during building leaderboard entry", it)
-            }) {
+            rawLeaderboard.forEachSafe {
                 val holderId = it["holderId"] as String
                 @Suppress("kotlin:S6611") // We know that the field is present
                 val value = (it[field]!! as Number).toDouble()
@@ -109,15 +105,21 @@ data class Scope(
     /**
      * Get the top position in the leaderboard for the given field of the given holder
      *
-     * If no field is found for the holder or field is not a double, null is returned
+     * May throw [NumberFormatException] if the field is not a number
      *
      * @param field field to get the top position for
      * @param holderId holder to get the top position for
-     * @return the top position in the leaderboard for the given field of the given holder
+     * @return the top position in the leaderboard for the given field of the given holder (where 0 is max)
+     * or null if not found
      */
-    suspend fun getTopPosition(field: String, holderId: String): LeaderboardEntry? {
-        val position = logTiming("getTopPosition") {
-            val value = loadData(holderId)[field] as? Double ?: return null
+    suspend fun getTopPosition(holderId: String, field: String): LeaderboardEntry? {
+        val position = logger.recordTiming(name = "getTopPosition") {
+
+            val fieldValue = loadData(holderId)[field] ?: return null
+            if (fieldValue !is Number)
+                throw NumberFormatException("Field $field is not a number")
+            val value = fieldValue.toDouble()
+
             val position = collection.getTopPosition(holderId, field, value)
 
             ensureIndexAsync(field)
@@ -138,7 +140,4 @@ data class Scope(
             }
         }
     }
-
-
-
 }

@@ -7,10 +7,10 @@ import kotlinx.coroutines.withContext
 import org.ndk.nexushub.NexusHub
 import org.ndk.nexushub.network.PacketManager
 import org.ndk.nexushub.network.addressHash
-import org.ndk.nexushub.network.dsl.HandlerContext
-import org.ndk.nexushub.network.packet.Packet
+import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.network.transmission.PacketTransmission
+import org.ndk.nexushub.packet.Packet
 
 class KtorTalker(val session: DefaultWebSocketServerSession) : Talker {
 
@@ -28,7 +28,7 @@ class KtorTalker(val session: DefaultWebSocketServerSession) : Talker {
         }
     }
 
-    override suspend fun receive(data: ByteArray): HandlerContext.Incoming<Packet>? {
+    override suspend fun receive(data: ByteArray): IncomingContext<Packet>? {
         return packetManager.processIncomingPacket(data)
     }
 

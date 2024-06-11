@@ -1,7 +1,7 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+
 
 /**
  * @property packetId Packet id that should be unique for each packet
@@ -19,7 +19,7 @@ abstract class Packet {
     val responseSequential
         get() = sequantial.inc()
 
-    abstract fun deserialize(deserializer: PacketDeserializer)
+    abstract fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer)
     abstract fun serialize(serializer: PacketSerializer)
 
     fun serialize(): ByteArray {

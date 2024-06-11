@@ -8,10 +8,10 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ndk.nexushub.client.NexusHub
-import org.ndk.nexushub.network.dsl.HandlerContext
-import org.ndk.nexushub.network.packet.*
-import org.ndk.nexushub.network.packet.PacketError.Level
+import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
+import org.ndk.nexushub.packet.*
+import org.ndk.nexushub.packet.PacketError.Level
 
 class NexusHubConnection(val hub: NexusHub) {
 
@@ -61,7 +61,7 @@ class NexusHubConnection(val hub: NexusHub) {
 
                     // Обработка закрытия канала
                     val reason = closeReason.await()
-                    logger.warn("WebSocket channel closed. Reason: ${reason?.message}")
+                    onClose(reason)
                 }
 
                 NexusAuthentication(this@NexusHubConnection).start()
@@ -72,6 +72,23 @@ class NexusHubConnection(val hub: NexusHub) {
         }
     }
 
+    fun onClose(reason: CloseReason?) {
+        if (reason == null) {
+            logger.error("WebSocket channel closed without reason")
+            return
+        }
+
+        val code  = reason.code
+        when (code) {
+            4000.toShort() -> {
+                throw ConnectException.WrongCredentialsException("Server rejected connection due to wrong credentials")
+            }
+            else -> {
+                logger.warn("WebSocket channel closed. Reason: ${reason.message}")
+                return
+            }
+        }
+    }
 
     /**
      * Function to runtime handle fatal errors.
@@ -103,46 +120,82 @@ class NexusHubConnection(val hub: NexusHub) {
     }
 
 
-    suspend fun syncHolderData(context: HandlerContext.Incoming<PacketRequestHolderSync>) {
+    suspend fun processSyncHolderData(context: IncomingContext<PacketRequestHolderSync>) {
         val packet = context.packet
         val scope = packet.scope
         val holderId = packet.holderId
-        val service = hub.getCorrespondingService(scope) ?: return
+        val service = hub.getService(scope) ?: return
         val session = service.getExistingSession(holderId)
         if (session == null) {
-            context.respond(PacketError(Level.ERROR, "No data found"))
+            context.respond(
+                PacketError(
+                    Level.ERROR,
+                    PacketError.Code.SESSION_NOT_FOUND,
+                    "No session found"
+                )
+            )
             return
         }
 
-        session.saveData()
+        if (!session.hasToBeSaved())
+            return
 
-        context.respond(PacketOk("Data synced"))
+
+        session.afterLoadHooks.executeHooks()
+        val dataStr = session.serialiseData()
+        val savePacket = PacketSaveData(scope, holderId, dataStr)
+
+        // Expected behaviour is to receive nothing after sync
+        context.respond(savePacket) {
+            receive {
+                logger.warn("Unexpected behaviour while syncing data for $scope:$holderId. Received: $packet")
+            }
+
+            exception {
+                logger.warn("Exception while syncing data!", exception)
+            }
+        }
     }
 
-    suspend fun syncData(context: HandlerContext.Incoming<PacketRequestSync>) {
+    suspend fun processSyncData(context: IncomingContext<PacketRequestSync>) {
         val packet = context.packet
-        val scope = packet.scope
-        val service = hub.getCorrespondingService(scope) ?: return
+        val scopeId = packet.scope
+        val service = hub.getService(scopeId) ?: return
 
+        val batchMap = HashMap<String, String>()
+
+        val batchPacket = PacketBatchSaveData(scopeId, batchMap)
         service.sessions.forEach {
-            it.saveData()
+            if (!it.hasToBeSaved()) return@forEach
+
+            // Invoke any hooks before saving the data
+            it.beforeSaveHooks.executeHooks()
+            val dataStr = it.serialiseData()
+            batchMap[it.holderId] = dataStr
         }
 
-        context.respond(PacketOk("Data synced"))
+        context.respond(batchPacket)
     }
 
-    suspend fun processPing(context: HandlerContext.Incoming<PacketPing>) {
+
+    suspend fun processPing(context: IncomingContext<PacketPing>) {
         context.respond(PacketPong())
     }
 
-    suspend fun onPacketReceived(context: HandlerContext.Incoming<Packet>) {
+    suspend fun onPacketReceived(context: IncomingContext<Packet>) {
         val packet = context.packet
         logger.debug("Packet received: $packet")
 
+        // If the packet is a response, we don't need to process it
+        if (context.isResponse)
+            return
+
         @Suppress("UNCHECKED_CAST")
         when (packet) {
-            is PacketPing -> processPing(context as HandlerContext.Incoming<PacketPing>)
-            is PacketRequestHolderSync -> syncHolderData(context as HandlerContext.Incoming<PacketRequestHolderSync>)
+            is PacketPing -> processPing(context as IncomingContext<PacketPing>)
+            is PacketRequestHolderSync -> processSyncHolderData(context as IncomingContext<PacketRequestHolderSync>)
+            is PacketRequestSync -> processSyncData(context as IncomingContext<PacketRequestSync>)
+            else -> logger.warn("Unhandled packet: $packet")
         }
     }
 }

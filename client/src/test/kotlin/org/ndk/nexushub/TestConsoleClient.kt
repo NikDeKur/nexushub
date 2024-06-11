@@ -7,7 +7,6 @@ import org.ndk.klib.parallel
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.client.service.AbstractNexusService
 import org.ndk.nexushub.client.sesion.SessionImpl
-import java.util.concurrent.ConcurrentHashMap
 
 object TestConsoleClient {
     val scope = CoroutineScheduler(
@@ -28,31 +27,33 @@ object TestConsoleClient {
     }
 
     suspend fun saveTask() {
-        val sessions = service.sessionsCache.asMap().values
-        hub.blockingScope.parallel(service.saveParallelism, sessions) {
+        val sessions = members.sessionsCache.asMap().values
+        hub.blockingScope.parallel(members.saveParallelism, sessions) {
             println("Saving data for ${it.holder}...")
-            it.stop()
+            it.saveData()
         }.awaitAll()
     }
 
-    val service = object : AbstractNexusService<String, SessionImpl.FinalSession<String>>(hub) {
+    val members = object : AbstractNexusService<String, SessionImpl.FinalSession<String>>(hub) {
 
-        override val scope: String = "test-service"
+        override val scope: String = "miragebot_members"
 
-        override fun createSession(holder: String): SessionImpl.FinalSession<String> {
-            return SessionImpl.FinalSession(this, holder)
-        }
+        override fun createSession(holder: String) = SessionImpl.FinalSession(this, holder)
 
-        override fun getId(holder: String) = "id-$holder"
+        override fun getId(holder: String) = holder
         override fun getName(holder: String) = "name-$holder"
     }
 
     fun init() {
         // Task will freeze the thread executing in
         runBlocking {
-            println("Booting...")
-            hub.addService(service)
-            hub.start()
+            hub.addService(members)
+            try {
+                hub.start()
+            } catch (e: Exception) {
+                println("Failed to start NexusHub!")
+                e.printStackTrace()
+            }
             println("Shutdown...")
         }
     }
@@ -72,6 +73,8 @@ object TestConsoleClient {
         println("2. Set data")
         println("3. Load data")
         println("4. Save data")
+        println("5. Get Top Position")
+        println("6. Get Leaderboard")
 
         while (hub.isRunning) {
             val input = readln().toIntOrNull() ?: continue
@@ -84,12 +87,12 @@ object TestConsoleClient {
                 }
 
                 1 -> {
-                    val session = service.getSession(HOLDER)
+                    val session = members.getSession(HOLDER)
                     println("Data: ${session.data}")
                 }
 
                 2 -> {
-                    val session = service.getSession(HOLDER)
+                    val session = members.getSession(HOLDER)
                     val key = input("Enter key: ")
                     val value = input("Enter value: ")
                     session[key] = value
@@ -98,23 +101,22 @@ object TestConsoleClient {
 
                 3 -> {
                     println("Loading data...")
-                    val session = service.getSession(HOLDER)
+                    val session = members.getSession(HOLDER)
                     session.loadData()
                     println("Data: ${session.data}")
                 }
 
                 4 -> {
                     println("Saving data...")
-                    val session = service.getSession(HOLDER)
+                    val session = members.getSession(HOLDER)
                     session.saveData()
                     println("Data saved")
                 }
-                5 -> {
-                    val session = service.getSession(HOLDER)
-                    val someInnerMap: MutableMap<String, String> = session.data.computeIfAbsent("someInnerMap") { ConcurrentHashMap<String, String>() } as MutableMap<String, String>
-                    someInnerMap["someKey"] = "someValue"
-                    println("Data: ${session.data}")
-                }
+//                5 -> {
+//                    val field
+//                    val leaderboard = members.getLeaderboard()
+//                }
+
             }
         }
     }

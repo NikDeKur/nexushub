@@ -2,24 +2,22 @@
 
 package org.ndk.nexushub.node
 
-import io.ktor.websocket.*
+import kotlinx.coroutines.awaitAll
 import org.ndk.global.interfaces.Snowflake
-import org.ndk.klib.forEachSafe
-import org.ndk.klib.removeEmpty
+import org.ndk.klib.isBlankOrEmpty
 import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.auth.account.Account
-import org.ndk.nexushub.exception.NoScopeAccessException
 import org.ndk.nexushub.network.GsonSupport
 import org.ndk.nexushub.network.NexusData
-import org.ndk.nexushub.network.dsl.HandlerContext
 import org.ndk.nexushub.network.dsl.IncomingContext
-import org.ndk.nexushub.network.packet.*
-import org.ndk.nexushub.network.packet.PacketError.Level
 import org.ndk.nexushub.network.talker.Talker
+import org.ndk.nexushub.packet.*
+import org.ndk.nexushub.packet.PacketError.Code
+import org.ndk.nexushub.packet.PacketError.Level
 import org.ndk.nexushub.scope.Scope
 import org.ndk.nexushub.scope.ScopesManager
-import org.ndk.nexushub.session.Session
 import org.ndk.nexushub.session.SessionsManager
+import org.ndk.nexushub.session.SessionsManager.stopSession
 
 class ClientNode(
     val talker: Talker,
@@ -29,20 +27,23 @@ class ClientNode(
 
     var isAlive = true
 
-    suspend fun processAuthenticatedPacket(context: HandlerContext.Receive<Packet, Unit>) {
+    suspend fun processAuthenticatedPacket(context: IncomingContext<out Packet>) {
         val packet = context.packet
 
-        try {
-            @Suppress("UNCHECKED_CAST")
-            when (packet) {
-                is PacketCreateSession -> createSession(context as IncomingContext<PacketCreateSession>)
-                is PacketLoadData -> processLoadDataPacket(context as IncomingContext<PacketLoadData>)
-                is PacketStopSession -> stopSession(context as IncomingContext<PacketStopSession>)
-                is PacketSaveData -> processSaveDataPacket(context as IncomingContext<PacketSaveData>)
-                is PacketRequestLeaderboard -> processRequestLeaderboardPacket(context as IncomingContext<PacketRequestLeaderboard>)
-            }
-        } catch (e: NoScopeAccessException) {
-            context.respond(PacketError(Level.ERROR, "Scope ${e.scopeId} is not allowed for your account"))
+        // Drop a packet if it's a response.
+        // All responses are handled by code sending the request
+        if (context.isResponse)
+            return
+
+        @Suppress("UNCHECKED_CAST")
+        when (packet) {
+            is PacketCreateSession -> processCreateSessionPacket(context as IncomingContext<PacketCreateSession>)
+            is PacketLoadData -> processLoadDataPacket(context as IncomingContext<PacketLoadData>)
+            is PacketStopSession -> processStopSessionPacket(context as IncomingContext<PacketStopSession>)
+            is PacketSaveData -> processSaveDataPacket(context as IncomingContext<PacketSaveData>)
+            is PacketBatchSaveData -> processBatchSaveDataPacket(context as IncomingContext<PacketBatchSaveData>)
+            is PacketRequestLeaderboard -> processRequestLeaderboardPacket(context as IncomingContext<PacketRequestLeaderboard>)
+            is PacketRequestTopPosition -> processTopPositionPacket(context as IncomingContext<PacketRequestTopPosition>)
         }
     }
 
@@ -50,54 +51,79 @@ class ClientNode(
         return account.allowedScopes.contains(scopeId)
     }
 
-    inline fun checkScopeAccess(scopeId: String) {
-        if (!hasScopeAccess(scopeId)) {
-            throw NoScopeAccessException(scopeId)
-        }
-    }
 
-    suspend inline fun getScopeWithAccess(scopeId: String): Scope {
-        checkScopeAccess(scopeId)
+    suspend inline fun IncomingContext<out Packet>.accessScope(scopeId: String): Scope? {
+        val has = hasScopeAccess(scopeId)
+        if (!has) {
+            this.respond(
+                PacketError(
+                    Level.ERROR,
+                    Code.SCOPE_IS_NOT_ALLOWED,
+                    "Scope '${scopeId}' is not allowed for your account"
+                )
+            )
+            return null
+        }
         return ScopesManager.getScope(scopeId)
     }
 
-    suspend fun createSession(context: IncomingContext<PacketCreateSession>) {
+    suspend fun processCreateSessionPacket(context: IncomingContext<PacketCreateSession>) {
         val packet = context.packet
+        val scopeId  = packet.scopeId
         val holderId = packet.holderId
 
-        val scope = getScopeWithAccess(packet.scopeId)
+        val scope = context.accessScope(scopeId) ?: return
         val sessions = SessionsManager.getExistingSession(scope.id, holderId)
         if (sessions != null) {
-            context.respond(PacketError(Level.ERROR, "Session already exists"))
+            context.respond(
+                PacketError(
+                    Level.ERROR,
+                    Code.SESSION_ALREADY_EXISTS,
+                    "Creating a few write sessions is not allowed"
+                )
+            )
             return
         }
 
-        val dataStr = try {
-            val data = loadData(scope, holderId)
-            GsonSupport.dataToString(data)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            context.respond(PacketError(Level.ERROR, "Error while serializing data"))
-            return
-        }
+        val data = loadData(scope, holderId)
+        val dataStr = GsonSupport.dataToString(data)
 
         SessionsManager.startSession(this, scope, holderId)
 
-        val dataPacket = PacketUserData(holderId, scope.id, dataStr)
+        val dataPacket = PacketUserData(holderId, scopeId, dataStr)
         context.respond(dataPacket)
     }
 
-    suspend fun stopSession(context: IncomingContext<PacketStopSession>) {
+    suspend fun processStopSessionPacket(context: IncomingContext<PacketStopSession>) {
         val packet = context.packet
+        val scopeId = packet.scopeId
         val holderId = packet.holderId
 
-        val scope = getScopeWithAccess(packet.scopeId)
+        val scope = context.accessScope(scopeId) ?: return
+
+        val session = SessionsManager.getExistingSession(scopeId, holderId)
+        if (session == null) {
+            context.respond(
+                PacketError(
+                    Level.ERROR,
+                    Code.SESSION_NOT_FOUND,
+                    "Session not found"
+                )
+            )
+            return
+        }
 
         // Save data and stop session
         try {
             setData(scope, holderId, packet.data)
         } catch (e: Exception) {
-            context.respond(PacketError(Level.ERROR, "Error while saving data"))
+            context.respond(
+                PacketError(
+                    Level.ERROR,
+                    Code.ERROR_IN_DATA,
+                    "Error while converting data from JSON"
+                )
+            )
             return
         }
 
@@ -106,98 +132,136 @@ class ClientNode(
 
     suspend fun processLoadDataPacket(context: IncomingContext<out PacketLoadData>) {
         val packet = context.packet
+        val scopeId = packet.scopeId
         val holderId = packet.holderId
 
-        val scope = getScopeWithAccess(packet.scopeId)
+        val scope = context.accessScope(scopeId) ?: return
 
-        val dataStr = try {
-            val data = loadData(scope, holderId)
-            GsonSupport.dataToString(data)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            context.respond(PacketError(Level.ERROR, "Error while serializing data"))
-            return
-        }
+        val data = loadData(scope, holderId)
+        val dataStr = GsonSupport.dataToString(data)
 
-        val dataPacket = PacketUserData(holderId, scope.id, dataStr)
+        val dataPacket = PacketUserData(holderId, scopeId, dataStr)
         context.respond(dataPacket)
     }
 
+
     suspend fun processSaveDataPacket(context: IncomingContext<out PacketSaveData>) {
         val packet = context.packet
+        val scopeId = packet.scopeId
         val holderId = packet.holderId
-        val scope = getScopeWithAccess(packet.scopeId)
+        val scope = context.accessScope(scopeId) ?: return
 
         val dataStr = packet.data
 
         try {
             setData(scope, holderId, dataStr)
         } catch (e: Exception) {
-            val errors = mapOf(holderId to dataStr)
-            context.respond(PacketSaveError("Error while saving data", errors))
+            context.respond(
+                PacketError(
+                    Level.ERROR,
+                    Code.ERROR_IN_DATA,
+                    "Error while saving data in $scope for $holderId ($dataStr)"
+                )
+            )
             return
         }
 
         context.respond(PacketOk("Data saved"))
     }
 
+
+
     suspend fun processBatchSaveDataPacket(context: IncomingContext<PacketBatchSaveData>) {
         val packet = context.packet
-        val scope = getScopeWithAccess(packet.scopeId)
+        val scopeId = packet.scopeId
+        val scope = context.accessScope(scopeId) ?: return
 
         val data = packet.data
 
-        val errors = HashMap<String, String>()
+        saveBatchDataSafe(scope, data)
 
-        data.forEachSafe({ errors[key] = value }) { (holderId, dataStr) ->
-            setData(scope, holderId, dataStr)
-        }
+        context.respond(PacketOk("Data saved"))
+    }
 
-        if (errors.isNotEmpty()) {
-            val error = PacketSaveError("Error while saving some of data", errors)
-            context.respond(error)
-        } else {
-            context.respond(PacketOk("Data saved gracefully"))
-        }
+    suspend fun saveBatchDataSafe(scope: Scope, holderToData: Map<String, String>) {
+        holderToData.mapNotNull {
+            val holderId = it.key
+            val dataStr = it.value
+            try {
+                val data = GsonSupport.dataFromString(dataStr)
+                data.apply {
+
+                }
+                if (data.isEmpty())
+                    return@mapNotNull null
+
+
+                scope.queueDataSet(holderId, data)
+            } catch (e: Exception) {
+                // Do nothing by now
+                null
+            }
+        }.awaitAll()
     }
 
     suspend fun processRequestLeaderboardPacket(context: IncomingContext<PacketRequestLeaderboard>) {
+        logger.info("Processing leaderboard packet")
         val packet = context.packet
+        val scopeId = packet.scopeId
         val field = packet.field
+        val startFrom = packet.startFrom
         val limit = packet.limit
-        val scope = getScopeWithAccess(packet.scopeId)
+        val requestPosition: String? = packet.requestPosition.let {
+            if (it.isBlankOrEmpty()) null else it
+        }
+        val scope = context.accessScope(scopeId) ?: return
 
-        val session = SessionsManager.getExistingSession(scope.id, packet.holderId)
-        if (session != null && session.node != this)
-            requestSync(scope.id)
+        SessionsManager.requestSync(scope)
 
-        val leaderboard = scope.getLeaderboard(field, limit)
+        val leaderboard = scope.getLeaderboard(field, startFrom, limit)
+        logger.info("Leaderboard: $leaderboard")
 
-        context.respond(PacketLeaderboard(leaderboard))
+        val position = requestPosition?.let {
+            try {
+                scope.getTopPosition(it, field)
+            } catch (e: NumberFormatException) {
+                context.respondError(Code.FIELD_IS_NOT_NUMBER)
+                return
+            }
+        }
+
+        logger.info("Position: $position")
+
+        context.respond(PacketLeaderboard(leaderboard, position))
+        logger.info("Responded")
     }
 
     suspend fun processTopPositionPacket(context: IncomingContext<PacketRequestTopPosition>) {
         val packet = context.packet
+        val scopeId = packet.scopeId
         val holderId = packet.holderId
         val field = packet.field
-        val scope = getScopeWithAccess(packet.scopeId)
+        val scope = context.accessScope(scopeId) ?: return
 
-        val session = SessionsManager.getExistingSession(scope.id, holderId)
-        if (session != null && session.node != this)
-            requestSync(scope.id)
+        SessionsManager.requestSync(scope)
 
-        val entry = scope.getTopPosition(holderId, field)
+        val entry = try {
+            scope.getTopPosition(holderId, field)
+        } catch (e: NumberFormatException) {
+            context.respondError(Code.FIELD_IS_NOT_NUMBER)
+            return
+        }
 
-        val pos = entry?.position ?: -1
-        val value = entry?.value ?: -1.0
-
-        context.respond(PacketTopPosition(pos, value))
+        context.respond(PacketTopPosition(entry))
     }
 
     suspend fun loadData(scope: Scope, holderId: String): NexusData {
         val session = SessionsManager.getExistingSession(scope.id, holderId)
-        if (session != null && session.node != this) {
-            requestSync(session)
+        if (session != null) {
+            val node = session.node
+            if (node != this) {
+                node.requestSync(session.scope, session.holderId)
+            }
         }
 
         return scope.loadData(holderId)
@@ -217,51 +281,55 @@ class ClientNode(
      * @param holderId holder id
      * @param dataStr data string to set
      */
-    fun setData(scope: Scope, holderId: String, dataStr: String) {
-        val dataRaw = GsonSupport.dataFromString(dataStr)
+    suspend fun setData(scope: Scope, holderId: String, dataStr: String) {
+        val data = GsonSupport.dataFromString(dataStr)
 
-        val data = dataRaw.removeEmpty(maps = true, collections = true)
-
-        scope.setData(holderId, data)
+        scope.setDataSync(holderId, data)
     }
-
-
-    suspend fun requestSync(scopeId: String) {
-        val packet = PacketRequestSync(scopeId)
-
-        sendPacket(packet) {
-            receive<PacketOk> {}
-            receive<PacketError> {
-                logger.warn("Error while syncing data: ${this.packet}")
-            }
-
-            timeout(5000) {
-                logger.warn("Timeout while global syncing data for scope $scopeId with node $id")
-            }
-
-            exception {
-                logger.warn("Exception while syncing data!", exception)
-            }
-        }.await()
-    }
-
 
     /**
-     * After a client receives this packet, it will send requested data to the server with [PacketSaveData]
-     *
-     * The answer would not be responded to this function, but this function will wait for PacketOk or PacketError.
+     * Request data synchronisation (actual data) for given holder in the given scope.
      *
      * The next code called after this function will be executed after the data is synced.
      */
-    suspend fun requestSync(session: Session) {
-        val holderId = session.holderId
-        val node = session.node
-        val syncPacket = PacketRequestHolderSync(id, holderId)
+    suspend fun requestSync(scope: Scope, holderId: String) {
+        val syncPacket = PacketRequestHolderSync(scope.id, holderId)
 
-        node.sendPacket(syncPacket) {
-            receive<PacketOk> {}
+        @Suppress( "RemoveExplicitTypeArguments")
+        sendPacket<Unit>(syncPacket) {
+            receive<PacketSaveData> {
+                if (packet.scopeId != scope.id) {
+                    logger.warn("Received data for different scope: ${packet.scopeId} instead of ${scope.id}")
+                    return@receive
+                }
+
+                if (packet.holderId != holderId) {
+                    logger.warn("Received data for different holder: ${packet.holderId} instead of $holderId")
+                    return@receive
+                }
+
+                val dataStr = packet.data
+                try {
+                    setData(scope, holderId, dataStr)
+                } catch (e: Exception) {
+                    this.respond(
+                        PacketError(
+                            Level.ERROR,
+                            Code.ERROR_IN_DATA,
+                            "Error while saving data in $scope for $holderId ($dataStr)"
+                        )
+                    )
+                    return@receive
+                }
+            }
+
             receive<PacketError> {
-                logger.error("Error returned while syncing data: $packet")
+                if (packet.code == Code.SESSION_NOT_FOUND) {
+                    logger.warn("Session not found while syncing data with node $this for holder $holderId. Packet: $packet. Removing session...")
+                    stopSession(scope.id, holderId)
+                } else {
+                    logger.error("Error returned while syncing data: $packet")
+                }
             }
 
             timeout(5000) {}
@@ -273,49 +341,42 @@ class ClientNode(
     }
 
 
-    override fun toString(): String {
-        return "ClientNode(id='$id', account=$account)"
-    }
+    /**
+     * Request data synchronisation for this node, making it respond with all data related to the scope
+     *
+     * @param scope scope to sync
+     */
+    suspend fun requestSync(scope: Scope) {
+        val syncPacket = PacketRequestSync(scope.id)
 
-    suspend fun ping(): Boolean {
-        return sendPacket(PacketPing()) {
-            // Response is a ping packet
-            receive<PacketPong> {
-                true
+        @Suppress("RemoveExplicitTypeArguments")
+        sendPacket<Unit>(syncPacket) {
+            receive<PacketBatchSaveData> {
+                if (packet.scopeId != scope.id) {
+                    logger.warn("Received data for different scope: ${packet.scopeId} instead of ${scope.id}")
+                    return@receive
+                }
+                saveBatchDataSafe(scope, packet.data)
             }
 
-            // Response is not a ping packet
             receive {
-                logger.warn("Received unexpected packet while pinging node: $packet")
-                false
+                logger.warn("Unexpected behaviour while global syncing data: ${this.packet}")
             }
 
-            // Timeout exceeded
-            timeout(4000) {
-                logger.warn("Timeout while pinging node")
-                false
+            timeout(5000) {
+                logger.warn("Timeout while global syncing data for scope ${scope.id} with node $id")
             }
 
-            // Exception occurred
             exception {
-                logger.error("Exception occurred while pinging node", exception)
-                false
+                logger.warn("Exception while syncing data!", exception)
             }
-
         }.await()
     }
 
 
-    suspend fun checkAlive() {
-        if (!isAlive) return
-        if (!ping()) {
-            stopAsInactive()
-        }
-    }
 
-    suspend fun stopAsInactive() {
-        isAlive = false
-        close(CloseReason.Codes.GOING_AWAY, "Inactive")
+    override fun toString(): String {
+        return "ClientNode(id='$id', account=$account)"
     }
 
 

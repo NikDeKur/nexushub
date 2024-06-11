@@ -4,6 +4,8 @@ import kotlinx.coroutines.*
 import org.ndk.global.scheduler.impl.CoroutineScheduler
 import org.ndk.klib.addShutdownHook
 import org.ndk.nexushub.client.NexusHub
+import org.ndk.nexushub.client.service.AbstractNexusService
+import org.ndk.nexushub.client.sesion.SessionImpl
 import kotlin.system.exitProcess
 
 object TestSyncClient {
@@ -22,9 +24,20 @@ object TestSyncClient {
         }
     }
 
+    val service = object : AbstractNexusService<String, SessionImpl.FinalSession<String>>(hub) {
+
+        override val scope: String = "miragebot_members"
+
+        override fun createSession(holder: String) = SessionImpl.FinalSession(this, holder)
+
+        override fun getId(holder: String) = holder
+        override fun getName(holder: String) = "name-$holder"
+    }
+
     fun init() {
         // Task will freeze the thread executing in
         scope.launch {
+            hub.addService(service)
             hub.start()
         }
 
@@ -64,8 +77,7 @@ object TestSyncClient {
                 }
 
                 1 -> {
-                    val data = hub.statService.request(
-                        "miragebot_members_1168627596813140019_6",
+                    val data = service.getActualData(
                         "852966542986838056"
                     )
                     println("Data: $data")

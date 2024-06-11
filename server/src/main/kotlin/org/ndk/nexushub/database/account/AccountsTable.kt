@@ -7,8 +7,6 @@ import com.mongodb.client.result.DeleteResult
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import kotlinx.coroutines.flow.singleOrNull
 import org.bson.conversions.Bson
-import org.bson.types.ObjectId
-import org.ndk.nexushub.auth.account.Account
 import org.ndk.nexushub.database.Database
 
 object AccountsTable {
@@ -21,10 +19,13 @@ object AccountsTable {
         table = db.getCollection(TABLE_NAME)
     }
 
-    suspend fun newAccount(account: Account) {
-        table.insertOne(
-            getDAO(account)
-        )
+    suspend fun newAccount(dao: AccountDAO) {
+        table.insertOne(dao)
+    }
+
+    suspend fun updateAccount(dao: AccountDAO) {
+        val filter = "login" eq dao.login
+        table.replaceOne(filter, dao)
     }
 
     suspend fun fetchAccount(login: String): AccountDAO? {
@@ -37,11 +38,6 @@ object AccountsTable {
     suspend fun deleteAccount(login: String): DeleteResult {
         val filter = "login" eq login
         return table.deleteOne(filter)
-    }
-
-    fun getDAO(account: Account): AccountDAO {
-        val password = account.password
-        return AccountDAO(ObjectId(), account.login, password.hex, password.salt.hex, account.allowedScopes)
     }
 }
 

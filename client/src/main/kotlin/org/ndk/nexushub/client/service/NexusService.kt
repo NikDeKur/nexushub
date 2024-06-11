@@ -2,6 +2,9 @@ package org.ndk.nexushub.client.service
 
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.client.sesion.Session
+import org.ndk.nexushub.data.Leaderboard
+import org.ndk.nexushub.data.LeaderboardEntry
+import org.ndk.nexushub.network.NexusData
 import org.slf4j.Logger
 import java.util.*
 
@@ -148,4 +151,17 @@ interface NexusService<H : Any, S : Session<H, S>> {
     fun hasSession(holderId: String): Boolean {
         return getExistingSession(holderId) != null
     }
+
+    /**
+     * Request a leaderboard from the server with the specified parameters
+     *
+     * @param field The field to sort by
+     * @param limit The limit of entries to return
+     */
+    suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard
+
+
+    suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?>
+
+    suspend fun getActualData(holderId: String): NexusData
 }

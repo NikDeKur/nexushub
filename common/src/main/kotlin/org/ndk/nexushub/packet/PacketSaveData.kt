@@ -1,8 +1,9 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
-import org.ndk.nexushub.network.packet.type.PacketTypes.SAVE_DATA
+import org.ndk.nexushub.packet.serialize.PacketDeserializer
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.type.PacketTypes.SAVE_DATA
+
 
 /**
  * (IN) Packet to save user data from the database

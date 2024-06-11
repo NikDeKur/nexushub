@@ -13,7 +13,6 @@ import org.ndk.global.scheduler.Scheduler
 import org.ndk.global.scheduler.impl.CoroutineScheduler
 import org.ndk.nexushub.NexusHub
 import org.ndk.nexushub.NexusHub.logger
-import org.ndk.nexushub.database.account.AccountsTable
 
 
 object Database {
@@ -51,8 +50,7 @@ object Database {
         // Create a new client and connect to the server
         client = MongoClient.create(mongoClientSettings)
         database = client.getDatabase("nexushub")
-        AccountsTable.init()
 
-        logger.info("MongoDB inited")
+        logger.info("Connected to the database")
     }
 }

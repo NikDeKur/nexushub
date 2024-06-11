@@ -1,15 +1,15 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
-import org.ndk.nexushub.network.packet.type.PacketTypes
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.type.PacketTypes
+
 
 /**
  * (IN) Packet for authentication
  *
  * All clients must send this packet first to authenticate.
  */
-class PacketAuth : Packet {
+class PacketAuth : org.ndk.nexushub.packet.Packet {
 
     override val packetId = PacketTypes.AUTH.id
 
@@ -24,7 +24,7 @@ class PacketAuth : Packet {
         this.node = node
     }
 
-    override fun deserialize(deserializer: PacketDeserializer) {
+    override fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer) {
         login = deserializer.readString()
         password = deserializer.readString()
         node = deserializer.readString()

@@ -1,6 +1,7 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.type.PacketTypes.STOP_SESSION
+import org.ndk.nexushub.packet.type.PacketTypes.STOP_SESSION
+
 
 /**
  * (IN) Packet to stop user session and save data

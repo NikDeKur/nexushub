@@ -2,9 +2,10 @@ network:
   max_connections: 10
 
 data:
-  save_interval: 600     # seconds (10 minutes)
-  cache_expiration: 600  # seconds (10 minutes)
-  save_parallelism: 100  # number of active coroutines for saving data to the database
+  cache_expiration: 300  # seconds (5 minutes)
+  cache_max_size: 1000   # In-Scope max holders and their datas to be cached
+  save_parallelism: 16  # number of active coroutines for saving data to the database
+  sync_parallelism: 16
 
 database:
   username: nikdekur

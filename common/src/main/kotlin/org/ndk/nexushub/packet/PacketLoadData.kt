@@ -1,8 +1,7 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
-import org.ndk.nexushub.network.packet.type.PacketTypes.LOAD_DATA
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.type.PacketTypes.LOAD_DATA
 
 open class PacketLoadData : Packet {
 
@@ -20,7 +19,7 @@ open class PacketLoadData : Packet {
     }
 
 
-    override fun deserialize(deserializer: PacketDeserializer) {
+    override fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer) {
         scopeId = deserializer.readString()
         holderId = deserializer.readString()
     }

@@ -5,9 +5,10 @@ import io.ktor.server.plugins.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
-import org.ndk.nexushub.NexusHub
 import org.ndk.nexushub.NexusHub.blockingScope
+import org.ndk.nexushub.NexusHub.config
 import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.auth.AuthenticationManager
 import org.ndk.nexushub.node.KtorTalker
@@ -21,8 +22,6 @@ fun Application.configureRouting() {
     install(WebSockets) {
         pingPeriod = Duration.ofSeconds(15)
         timeout = Duration.ofSeconds(15)
-        maxFrameSize = Long.MAX_VALUE
-        masking = false
     }
 
     routing {
@@ -41,15 +40,16 @@ fun Route.routeProtocol() {
         // Из идей, можно давать ограниченное время на авторизацию и отключать ноду, если она не успела авторизоваться
         // Даже если хакеры попробуют заспамить, то нормальные ноды смогут подключиться
 
-        if (activeConnections.incrementAndGet() > NexusHub.MAX_CONNECTIONS) {
+        if (activeConnections.incrementAndGet() > config.network.max_connections) {
             close(CloseReason(CloseReason.Codes.TRY_AGAIN_LATER, "Too many connections"))
             return@webSocket
         }
 
         val address = addressHash
         try {
-            for (frame in incoming) {
-                if (frame !is Frame.Binary) continue
+           incoming.consumeEach { frame ->
+                if (frame !is Frame.Binary) return@consumeEach
+
                 val talker = TalkersManager.getExistingTalker(address) ?: run {
                     val newTalker = KtorTalker(this)
                     TalkersManager.setTalker(address, newTalker)

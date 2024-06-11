@@ -15,6 +15,7 @@ import kotlinx.serialization.decodeFromString
 import net.mamoe.yamlkt.Yaml
 import org.ndk.global.scheduler.impl.CoroutineScheduler
 import org.ndk.klib.addBlockingShutdownHook
+import org.ndk.nexushub.auth.account.AccountManager
 import org.ndk.nexushub.config.NexusConfig
 import org.ndk.nexushub.database.Database
 import org.ndk.nexushub.network.configureRouting
@@ -22,7 +23,6 @@ import org.ndk.nexushub.node.NodesManager
 import org.ndk.nexushub.scope.ScopesManager
 import org.slf4j.LoggerFactory
 import java.io.File
-import kotlin.properties.Delegates
 import kotlin.system.exitProcess
 
 object NexusHub {
@@ -33,18 +33,27 @@ object NexusHub {
 
     val blockingScope = CoroutineScheduler(CoroutineScope(Dispatchers.IO + SupervisorJob()))
 
-    var MAX_CONNECTIONS by Delegates.notNull<Int>()
-
     lateinit var config: NexusConfig
 
-    fun init(logger: org.slf4j.Logger, args: Array<String>) {
+    fun init(logger: Logger, args: Array<String>) {
+
+        this.logger = logger
+
+        val configPath = args.getOrElse(0) { "config.yml" }
+        val configFile = File(configPath)
+        if (!configFile.exists()) {
+            throw Exception("Config file not found! ")
+        }
+
+        config = configFile.readText().let {
+            Yaml.decodeFromString<NexusConfig>(it)
+        }
 
         addBlockingShutdownHook {
             NodesManager.closeAll(CloseReason.Codes.NORMAL.code, "Server is shutting down")
         }
 
         val cmdCnf = CommandLineConfig(args)
-        this.logger = logger
 
         server = EmbeddedServer(cmdCnf.applicationProperties, Netty) {
             takeFrom(cmdCnf.engineConfig)
@@ -52,18 +61,10 @@ object NexusHub {
 
         server.start(false)
 
-        val configFile = File("environment/config.yml")
-        if (!configFile.exists()) {
-            logger.error("Config file not found. Exiting...")
-            exitProcess(1)
-        }
-
-        config = configFile.readText().let {
-            Yaml.decodeFromString<NexusConfig>(it)
-        }
-
         runBlocking {
             Database.init()
+
+            AccountManager.init()
             ScopesManager.init()
         }
     }

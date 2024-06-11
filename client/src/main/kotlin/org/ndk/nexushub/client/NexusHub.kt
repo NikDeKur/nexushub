@@ -10,7 +10,6 @@ import org.ndk.klib.smartAwait
 import org.ndk.nexushub.client.connection.ConnectException
 import org.ndk.nexushub.client.connection.NexusHubConnection
 import org.ndk.nexushub.client.service.NexusService
-import org.ndk.nexushub.client.service.StatService
 import org.ndk.nexushub.client.util.NexusHubBuilderDSL
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -25,8 +24,6 @@ class NexusHub(val builder: Builder) {
         get() = _blockingScope ?: error("NexusHub is not started yet.")
 
     val connection = NexusHubConnection(this)
-
-    val statService = StatService(this)
 
     var isRunning = false
 
@@ -96,7 +93,7 @@ class NexusHub(val builder: Builder) {
         service.start()
     }
 
-    fun getCorrespondingService(scope: String): NexusService<*, *>? {
+    fun getService(scope: String): NexusService<*, *>? {
         return services[scope]
     }
 
@@ -109,9 +106,6 @@ class NexusHub(val builder: Builder) {
         var username: String = ""
         var password: String = ""
         internal var onReady: () -> Unit = {}
-
-        @NexusHubBuilderDSL
-        var batchSavingParallelism = 100
 
         @NexusHubBuilderDSL
         fun onReady(block: () -> Unit) {

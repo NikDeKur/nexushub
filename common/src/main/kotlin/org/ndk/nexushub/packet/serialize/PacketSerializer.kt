@@ -1,10 +1,10 @@
-package org.ndk.nexushub.network.packet.serialize
+package org.ndk.nexushub.packet.serialize
 
-import org.ndk.nexushub.network.packet.Packet
+import org.ndk.nexushub.packet.Packet
 import java.math.BigInteger
 import java.nio.ByteBuffer
 
-class PacketSerializer(val packet: Packet) {
+class PacketSerializer(val packet: org.ndk.nexushub.packet.Packet) {
 
     private var byteBuffer: ByteBuffer = ByteBuffer.allocate(16)
 

@@ -1,19 +1,19 @@
 package org.ndk.nexushub.client.sesion
 
-import kotlinx.coroutines.CompletableDeferred
-import org.ndk.klib.info
 import org.ndk.klib.removeEmpty
-import org.ndk.klib.smartAwait
 import org.ndk.nexushub.client.hook.HooksExecutor
 import org.ndk.nexushub.client.service.NexusService
+import org.ndk.nexushub.data.LeaderboardEntry
 import org.ndk.nexushub.network.GsonSupport
-import org.ndk.nexushub.network.packet.*
+import org.ndk.nexushub.packet.*
 import java.util.concurrent.ConcurrentHashMap
 
 open class SessionImpl<H : Any, S : Session<H, S>>(
     override val service: NexusService<H, S>,
     override val holder: H
 ) : Session<H, S> {
+
+    override var isActive: Boolean = false
 
     override val data = ConcurrentHashMap<String, Any>()
 
@@ -27,10 +27,45 @@ open class SessionImpl<H : Any, S : Session<H, S>>(
     override var isLoaded: Boolean = false
     override var isAfterLoadHooksExecuted: Boolean = false
 
-    override var latestLoadTime1 = -1L
-    override var latestLoadTime2 = -1L
-    override var latestSaveTime1 = -1L
-    override var latestSaveTime2 = -1L
+    var updatedAt = -1L
+    var savedAt = -1L
+
+    override fun hasToBeSaved(): Boolean {
+        val has = updatedAt > savedAt && data.isNotEmpty()
+        if (has) {
+            savedAt = System.currentTimeMillis()
+        }
+        return has
+    }
+
+    fun markUpdated() {
+        updatedAt = System.currentTimeMillis()
+    }
+
+    suspend fun createSession(): String? {
+        check(!isActive) { "Session is already active." }
+
+        val createPacket = PacketCreateSession(service.scope, holderId)
+        val talker = service.hub.connection.talker!!
+        @Suppress("RemoveExplicitTypeArguments")
+        val datastr = talker.sendPacket<String?>(createPacket) {
+            throwOnTimeout(5000)
+
+            receive<PacketUserData> {
+                packet.data
+            }
+
+            receive {
+                service.logger.warn("Error while creating session: $packet")
+                null
+            }
+        }.await()
+
+        if (datastr != null)
+            isActive = true
+
+        return datastr
+    }
 
     override suspend fun loadData() {
         check(!isLoading) { "Session is already loading." }
@@ -39,45 +74,51 @@ open class SessionImpl<H : Any, S : Session<H, S>>(
         // Invoke before load hooks
         beforeLoadHooks.executeHooks()
 
-        // Record the start time for performance measurement
-        val start = System.nanoTime()
+        val dataStr = if (!isActive) {
+            createSession()
+        } else {
+            val loadPacket = PacketLoadData(service.scope, holderId)
+            val talker = service.hub.connection.talker!!
+            @Suppress("RemoveExplicitTypeArguments")
+            talker.sendPacket<String?>(loadPacket) {
+                throwOnTimeout(5000)
 
-        val loadPacket = PacketCreateSession(service.scope, holderId)
-        val talker = service.hub.connection.talker!!
+                receive<PacketUserData> {
+                    packet.data
+                }
 
-        talker.sendPacket<Unit>(loadPacket) {
-            timeout(5000) {
-                isLoading = false
+                receive {
+                    service.logger.warn("Error while loading data: $packet")
+                    null
+                }
+            }.await()
+        }
+
+        try {
+            if (dataStr == null) {
+                return
             }
 
-            receive<PacketUserData> {
-                val newData = GsonSupport.dataFromString(packet.data)
+            val newData = GsonSupport.dataFromString(dataStr)
 
-                data.clear()
-                data.putAll(newData)
+            data.clear()
+            data.putAll(newData)
 
-                // Mark the session as loaded and not loading
-                isLoading = false
-                isLoaded = true
+            // Mark the session as loaded and not loading
+            isLoading = false
+            isLoaded = true
 
-                latestLoadTime1 = System.nanoTime() - start
+            // Invoke after load hooks
+            // After the session is marked as loaded to prevent errors on [ensureLoaded] function
+            afterLoadHooks.executeHooks()
 
-                // Invoke after load hooks
-                // This is done after the session is marked as loaded to prevent errors on [ensureLoaded] function
-                afterLoadHooks.executeHooks()
+            isAfterLoadHooksExecuted = true
 
-                isAfterLoadHooksExecuted = true
+            // Calculate the time taken for loading
 
-                // Calculate the time taken for loading
-                latestLoadTime2 = System.nanoTime() - start
-            }
-
-            exception {
-                service.hub.logger.error("Error while loading data: $packet", exception)
-
-                isLoading = false
-            }
-        }.await()
+        } finally {
+            isLoading = false
+        }
     }
 
     override suspend fun saveData() {
@@ -86,81 +127,83 @@ open class SessionImpl<H : Any, S : Session<H, S>>(
             return
         }
 
-        // Record the start time for performance measurement
-        val start = System.nanoTime()
+        // Invoke any hooks before saving the data
+        beforeSaveHooks.executeHooks()
 
-        val dataStr = prepareSave()
+        val dataStr = serialiseData()
 
         val packet = PacketSaveData(holderId, service.scope, dataStr)
 
-        val deferred = CompletableDeferred<Unit>()
-
-        service.hub.connection.talker!!.sendPacket(packet) {
+        service.hub.connection.talker!!.sendPacket<Unit>(packet) {
             receive<PacketOk> {
-                latestSaveTime1 = System.nanoTime() - start
                 afterSaveHooks.executeHooks()
-                latestSaveTime2 = System.nanoTime() - start
-                deferred.complete(Unit)
             }
 
             timeout(5000) {
                 service.hub.logger.warn("Timeout while saving data.")
-                deferred.complete(Unit)
             }
 
             receive {
                 service.hub.logger.warn("Error while saving data: $packet")
-                deferred.complete(Unit)
             }
-        }
-
-        deferred.smartAwait()
+        }.await()
     }
 
-    protected fun prepareSave(): String {
-        service.logger.info { "Preparing to save data... data: $data" }
-        // Invoke any hooks before saving the data
-        beforeSaveHooks.executeHooks()
-
+    override fun serialiseData(): String {
         // Remove any empty maps and collections from the data
         // To prevent empty maps and collections from being saved
         val clean = data.removeEmpty(maps = true, collections = true)
         val json = GsonSupport.dataToString(clean)
-        service.logger.info { "Data prepared for saving: $json" }
         return json
     }
 
 
     override suspend fun stop() {
-        // Record the start time for performance measurement
-        val start = System.nanoTime()
+        // Invoke any hooks before saving the data
+        beforeSaveHooks.executeHooks()
 
-        val dataStr = prepareSave()
+        val dataStr = serialiseData()
 
         val packet = PacketStopSession(holderId, service.scope, dataStr)
 
-        val deferred = CompletableDeferred<Unit>()
-
-        service.hub.connection.talker!!.sendPacket(packet) {
+        @Suppress("RemoveExplicitTypeArguments")
+        service.hub.connection.talker!!.sendPacket<Unit>(packet) {
             receive<PacketOk> {
-                latestSaveTime1 = System.nanoTime() - start
                 afterSaveHooks.executeHooks()
-                latestSaveTime2 = System.nanoTime() - start
-                deferred.complete(Unit)
             }
 
             timeout(5000) {
                 service.hub.logger.warn("Timeout while stopping session.")
-                deferred.complete(Unit)
             }
 
             receive {
                 service.hub.logger.warn("Error while stopping session: $packet")
-                deferred.complete(Unit)
             }
-        }
+        }.await()
 
-        deferred.smartAwait()
+        isActive = false
+
+        service.stopSession(holderId)
+    }
+
+    override suspend fun getTopPosition(
+        field: String
+    ): LeaderboardEntry? {
+        val packet = PacketRequestTopPosition(service.scope, holderId, field)
+
+        @Suppress("RemoveExplicitTypeArguments")
+        return service.hub.connection.talker!!.sendPacket<LeaderboardEntry?>(packet) {
+            throwOnTimeout(5000)
+
+            receive<PacketTopPosition> {
+                this.packet.entry
+            }
+
+            receive {
+                service.hub.logger.error("Unexpected behaviour while loading top position in scope '${service.scope}', for field '$field': $packet")
+                null
+            }
+        }.await()
     }
 
 

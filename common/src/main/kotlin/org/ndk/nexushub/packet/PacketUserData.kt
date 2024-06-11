@@ -1,8 +1,8 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
-import org.ndk.nexushub.network.packet.type.PacketTypes.USER_DATA
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.type.PacketTypes.USER_DATA
+
 
 /**
  * (OUT) Packet to send requested user data from the database
@@ -22,7 +22,7 @@ class PacketUserData : Packet {
         this.data = data
     }
 
-    override fun deserialize(deserializer: PacketDeserializer) {
+    override fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer) {
         holderId = deserializer.readString()
         scopeId = deserializer.readString()
         data = deserializer.readString()

@@ -7,10 +7,10 @@ import kotlinx.coroutines.withContext
 import org.ndk.global.scheduler.Scheduler
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.network.PacketManager
-import org.ndk.nexushub.network.dsl.HandlerContext
-import org.ndk.nexushub.network.packet.Packet
+import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.network.transmission.PacketTransmission
+import org.ndk.nexushub.packet.Packet
 import java.util.*
 
 class ServerTalker(
@@ -35,7 +35,7 @@ class ServerTalker(
         }
     }
 
-    override suspend fun receive(data: ByteArray): HandlerContext.Incoming<Packet>? {
+    override suspend fun receive(data: ByteArray): IncomingContext<Packet>? {
         return packetManager.processIncomingPacket(data)
     }
 

@@ -5,6 +5,7 @@ import org.ndk.klib.completedFuture
 import org.ndk.nexushub.client.hook.HooksExecutor
 import org.ndk.nexushub.client.hook.WhenSessionLoadedHook
 import org.ndk.nexushub.client.service.NexusService
+import org.ndk.nexushub.data.LeaderboardEntry
 import org.ndk.nexushub.network.NexusData
 import java.util.concurrent.CompletableFuture
 
@@ -12,6 +13,8 @@ interface Session<H : Any, S : Session<H, S>> {
 
     val service: NexusService<H, S>
     val data: NexusData
+
+    val isActive: Boolean
 
     var isLoading: Boolean
     var isLoaded: Boolean
@@ -36,40 +39,14 @@ interface Session<H : Any, S : Session<H, S>> {
     val beforeSaveHooks: HooksExecutor
     val afterSaveHooks: HooksExecutor
 
+    fun serialiseData(): String
+
     suspend fun loadData()
 
     suspend fun saveData()
 
     suspend fun stop()
 
-    /**
-     * The latest time in nanoseconds it took to load the data from the database.
-     *
-     * Time 1 is the time it took to load the data from the database.
-     */
-    var latestLoadTime1: Long
-
-
-    /**
-     * The latest time in nanoseconds it took to load the data from the database.
-     *
-     * Time 2 is the time it took to load the data from the database and process after load hooks.
-     */
-    var latestLoadTime2: Long
-
-    /**
-     * The latest time in nanoseconds it took to save the data to the database.
-     *
-     * Time 1 is the time it took to save the data to the database.
-     */
-    var latestSaveTime1: Long
-
-    /**
-     * The latest time in nanoseconds it took to save the data to the database.
-     *
-     * Time 2 is the time it took to save the data to the database and process after save hooks.
-     */
-    var latestSaveTime2: Long
 
     /**
      * Calls the block when the data [isFullyLoaded].
@@ -118,6 +95,10 @@ interface Session<H : Any, S : Session<H, S>> {
         }
     }
 
+
+
+    suspend fun getTopPosition(field: String): LeaderboardEntry?
+
     /**
      * Retrieves a value from the player data using the specified key.
      * This method allows accessing nested values within the player data using dot notation.
@@ -144,4 +125,7 @@ interface Session<H : Any, S : Session<H, S>> {
      * @return The value that was removed or null if not found.
      */
     fun remove(key: String): Any?
+
+
+    fun hasToBeSaved(): Boolean
 }

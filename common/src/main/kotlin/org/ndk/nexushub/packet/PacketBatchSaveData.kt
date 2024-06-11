@@ -1,10 +1,10 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
-import org.ndk.nexushub.network.packet.type.PacketTypes
+import org.ndk.nexushub.packet.serialize.PacketDeserializer
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.type.PacketTypes
 
-class PacketBatchSaveData : Packet() {
+class PacketBatchSaveData : Packet {
     override val packetId = PacketTypes.BATCH_SAVE_DATA.id
 
     var scopeId: String = ""
@@ -14,11 +14,19 @@ class PacketBatchSaveData : Packet() {
      */
     var data: Map<String, String> = emptyMap()
 
+    constructor()
+    constructor(scopeId: String, data: Map<String, String>) {
+        this.scopeId = scopeId
+        this.data = data
+    }
+
     override fun deserialize(deserializer: PacketDeserializer) {
         scopeId = deserializer.readString()
-        data = deserializer.readMap(
+        val size = deserializer.readInt()
+        data = deserializer.readHashMap(
+            size = size,
             keyReader = { readString() },
-            valueReader = { readString() }
+            valueReader = { readString() },
         )
     }
 

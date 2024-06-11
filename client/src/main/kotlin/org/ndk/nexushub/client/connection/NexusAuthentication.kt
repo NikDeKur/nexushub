@@ -1,9 +1,7 @@
 package org.ndk.nexushub.client.connection
 
-import kotlinx.coroutines.CompletableDeferred
-import org.ndk.klib.smartAwait
-import org.ndk.nexushub.network.packet.PacketAuth
-import org.ndk.nexushub.network.packet.PacketOk
+import org.ndk.nexushub.packet.PacketAuth
+import org.ndk.nexushub.packet.PacketOk
 
 class NexusAuthentication(
     val connection: NexusHubConnection,
@@ -20,33 +18,27 @@ class NexusAuthentication(
 
     private suspend fun authenticate() {
         val data = connection.hub.builder
-        val authPacket = PacketAuth(data.username, data.password, data.node)
-        val def = CompletableDeferred<Unit>()
+        val authPacket = org.ndk.nexushub.packet.PacketAuth(data.username, data.password, data.node)
 
         talker.sendPacket(authPacket) {
             timeout(5000L * (attempt + 1)) {
-                retry(def)
+                retry()
             }
 
-            receive<PacketOk> {
-                def.complete(Unit)
-            }
-        }
-
-        def.smartAwait()
+            receive<org.ndk.nexushub.packet.PacketOk> {}
+        }.await()
     }
 
-    private suspend fun retry(def: CompletableDeferred<Unit>) {
+    private suspend fun retry() {
         if (attempt >= 3)
-            fail(def)
+            fail()
 
         logger.info("Authentication failed. Retrying $attempt time...")
         attempt++
         authenticate()
     }
 
-    private fun fail(def: CompletableDeferred<Unit>): Nothing {
-        def.complete(Unit)
+    private fun fail(): Nothing {
         throw ConnectException.NoResponseException("Failed to authenticate after 3 attempts.")
     }
 }

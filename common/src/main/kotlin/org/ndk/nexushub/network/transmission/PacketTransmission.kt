@@ -1,14 +1,13 @@
 package org.ndk.nexushub.network.transmission
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.ndk.global.scheduler.SchedulerTask
 import org.ndk.klib.smartAwait
 import org.ndk.nexushub.network.dsl.HandlerContext
 import org.ndk.nexushub.network.dsl.PacketReaction
 import org.ndk.nexushub.network.dsl.ReceiveHandler
-import org.ndk.nexushub.network.packet.Packet
 import org.ndk.nexushub.network.talker.Talker
+import org.ndk.nexushub.packet.Packet
 import java.util.concurrent.TimeoutException
 
 /**
@@ -25,6 +24,8 @@ data class PacketTransmission<R>(
     var respondTo: Packet? = null
 
     var receivedPacket: Packet? = null
+
+    // PacketManager change to true
     var received = false
 
     val result = CompletableDeferred<R>()
@@ -32,7 +33,7 @@ data class PacketTransmission<R>(
         get() = result.isCompleted
 
 
-
+    val timeoutTasks = HashMap<Long, SchedulerTask>()
 
     internal suspend fun invokeException(talker: Talker, e: Exception) {
         try {
@@ -67,7 +68,7 @@ data class PacketTransmission<R>(
 
     internal suspend inline fun <T : Packet> invokeReceiveHandler(talker: Talker, handler: ReceiveHandler<T, R>, packet: T) {
         try {
-            val context = HandlerContext.Receive<T, R>(talker, packet)
+            val context = HandlerContext.Receive<T, R>(talker, packet, true)
             result.complete(handler.invoke(context))
         } catch (e: Exception) {
             invokeException(talker, e)
@@ -75,13 +76,12 @@ data class PacketTransmission<R>(
     }
 
 
-    var timeoutTask: SchedulerTask? = null
-    suspend fun invokeTimeout(talker: Talker) {
+    suspend fun invokeTimeout(timeout: Long, talker: Talker) {
         try {
             val context = HandlerContext.Timeout<R>(talker, packet)
-            val timeoutHandler = reaction.onTimeout
+            val timeoutHandler = reaction.timeouts[timeout]
             if (timeoutHandler == null) {
-                result.completeExceptionally(TimeoutException("Timeout while waiting for response"))
+                result.completeExceptionally(TimeoutException("No timeout response found for $timeout, but it was triggered"))
             } else {
                 result.complete(timeoutHandler.invoke(context))
             }
@@ -90,29 +90,14 @@ data class PacketTransmission<R>(
         }
     }
 
-    /**
-     * Process packet receiving
-     *
-     * Invokes the corresponding receiver handles for the received packet and all-packets handler (null-key).
-     *
-     * Marks the waiter as received.
-     *
-     * @param packet The received packet
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
+
     suspend fun processReceived(talker: Talker, packet: Packet) {
-        timeoutTask?.cancel()
-        timeoutTask = null
+        timeoutTasks.values.forEach { it.cancel() }
+        timeoutTasks.clear()
 
         invokeReceive(talker, packet)
-
-        // invokeReceive should cover everything and lead to result be somehow completed
-        markProcessed(result.getCompleted())
     }
 
-    private fun markProcessed(result: R) {
-        this.result.complete(result)
-    }
 
 
     suspend fun await(): R {

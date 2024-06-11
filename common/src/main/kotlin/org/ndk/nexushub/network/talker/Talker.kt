@@ -2,8 +2,8 @@ package org.ndk.nexushub.network.talker
 
 import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.dsl.PacketReaction
-import org.ndk.nexushub.network.packet.Packet
 import org.ndk.nexushub.network.transmission.PacketTransmission
+import org.ndk.nexushub.packet.Packet
 
 interface Talker {
 

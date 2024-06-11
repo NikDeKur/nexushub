@@ -1,11 +1,17 @@
 package org.ndk.nexushub.session
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitAll
 import org.ndk.global.map.multi.ConcurrentMultiHashMap
 import org.ndk.global.map.set.ConcurrentSetsHashMap
+import org.ndk.klib.parallel
+import org.ndk.nexushub.NexusHub.config
 import org.ndk.nexushub.node.ClientNode
 import org.ndk.nexushub.scope.Scope
 
 object SessionsManager {
+
 
     //                                    scope   holder
     val sessions = ConcurrentMultiHashMap<String, String, Session>()
@@ -13,31 +19,48 @@ object SessionsManager {
     //                                          node   session
     val nodeToSessions = ConcurrentSetsHashMap<String, Session>()
 
+    val scopeToNodes = ConcurrentSetsHashMap<String, ClientNode>()
+
     fun getExistingSession(scopeId: String, holderId: String): Session? {
-        return sessions.get(scopeId, holderId)
+        return sessions[scopeId, holderId]
     }
 
     fun startSession(node: ClientNode, scope: Scope, holderId: String) {
         val session = Session(node, scope, holderId)
         sessions.put(scope.id, holderId, session)
         nodeToSessions.add(node.id, session)
+        scopeToNodes.add(scope.id, node)
     }
 
     fun stopSession(scopeId: String, holderId: String) {
         val session = sessions.remove(scopeId, holderId)
         if (session != null) {
-            nodeToSessions.delete(session.node.id, session)
+            val node = session.node
+            nodeToSessions.delete(node.id, session)
+            scopeToNodes.delete(scopeId, node)
         }
     }
+
 
     fun stopAllSessions(node: ClientNode) {
         val nodeSessions = nodeToSessions.remove(node.id)
         nodeSessions?.forEach {
             sessions.remove(it.scope.id, it.holderId)
+            scopeToNodes.delete(it.scope.id, node)
         }
     }
 
-    fun doesNodeHaveAnySessions(node: ClientNode): Boolean {
+    fun hasAnySessions(node: ClientNode): Boolean {
         return nodeToSessions.contains(node.id)
+    }
+
+    val syncingScope = CoroutineScope(Dispatchers.IO)
+
+    suspend fun requestSync(scope: Scope) {
+        val nodes = scopeToNodes[scope.id]
+
+        syncingScope.parallel(config.data.sync_parallelism, nodes) {
+            it.requestSync(scope)
+        }.awaitAll()
     }
 }

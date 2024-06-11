@@ -1,8 +1,7 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.serialize.PacketSerializer
-import org.ndk.nexushub.network.packet.type.PacketTypes.REQUEST_HOLDER_SYNC
+import org.ndk.nexushub.packet.serialize.PacketSerializer
+import org.ndk.nexushub.packet.type.PacketTypes.REQUEST_HOLDER_SYNC
 
 class PacketRequestHolderSync : Packet {
     override val packetId = REQUEST_HOLDER_SYNC.id
@@ -16,7 +15,7 @@ class PacketRequestHolderSync : Packet {
         this.holderId = holderId
     }
 
-    override fun deserialize(deserializer: PacketDeserializer) {
+    override fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer) {
         scope = deserializer.readString()
         holderId = deserializer.readString()
     }

@@ -26,6 +26,6 @@ data class AccountDAO(
         val passwordBytes = password.fromHEX()
         val password = EncryptedPassword(passwordBytes, salt)
 
-        return Account(login, password, allowedScopes)
+        return Account(this, login, password, allowedScopes.toMutableSet())
     }
 }

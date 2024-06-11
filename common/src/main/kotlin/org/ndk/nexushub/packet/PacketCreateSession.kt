@@ -1,6 +1,7 @@
-package org.ndk.nexushub.network.packet
+package org.ndk.nexushub.packet
 
-import org.ndk.nexushub.network.packet.type.PacketTypes.CREATE_SESSION
+import org.ndk.nexushub.packet.type.PacketTypes.CREATE_SESSION
+
 
 /**
  * (IN) Packet to load user data from the database

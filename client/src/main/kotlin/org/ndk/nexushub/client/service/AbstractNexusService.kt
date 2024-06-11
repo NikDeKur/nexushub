@@ -8,6 +8,14 @@ import org.ndk.klib.info
 import org.ndk.klib.parallel
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.client.sesion.Session
+import org.ndk.nexushub.data.Leaderboard
+import org.ndk.nexushub.data.LeaderboardEntry
+import org.ndk.nexushub.network.GsonSupport
+import org.ndk.nexushub.network.NexusData
+import org.ndk.nexushub.packet.PacketLeaderboard
+import org.ndk.nexushub.packet.PacketLoadData
+import org.ndk.nexushub.packet.PacketRequestLeaderboard
+import org.ndk.nexushub.packet.PacketUserData
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -37,6 +45,8 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
             .removalListener {
                 if (!isRunning) return@removalListener
                 hub.blockingScope.launch {
+                    val session = it.value!!
+                    if (!session.isActive) return@launch
                     it.value!!.stop()
                 }
             }
@@ -82,5 +92,63 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
         sessionsCache.put(getId(holder), session)
         session.loadData()
         return session
+    }
+
+
+
+    override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard {
+        val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, "")
+
+        return hub.connection.talker!!.sendPacket(packet) {
+            throwOnTimeout(5000)
+
+            receive<PacketLeaderboard> {
+                this.packet.leaderboard
+            }
+
+            receive {
+                error { "Unexpected behaviour while loading leaderboard in scope '$scope', for field '$field', with limit '$limit': $packet" }
+            }
+        }.await()
+    }
+
+    override suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?> {
+        check(holderId.isNotEmpty()) { "positionOf cannot be empty" }
+        val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, holderId)
+
+        return hub.connection.talker!!.sendPacket(packet) {
+            throwOnTimeout(5000)
+
+            receive<PacketLeaderboard> {
+                this.packet
+            }
+
+            receive {
+                error { "Unexpected behaviour while loading leaderboard and position in scope '$scope', for field '$field', with limit '$limit' and position for holder '$holderId': $packet" }
+            }
+        }
+            .await()
+            .let { it.leaderboard to it.requestPosition }
+    }
+
+
+    override suspend fun getActualData(holderId: String): NexusData {
+        val packet = PacketLoadData(scope, holderId)
+
+        val dataStr = hub.connection.talker!!.sendPacket(packet) {
+            throwOnTimeout(5000)
+
+            receive<PacketUserData> {
+                this.packet.data
+            }
+
+            receive {
+                error { "Unexpected behaviour while 'getActualData' for '$holderId': $packet" }
+            }
+        }.await()
+
+        val data = GsonSupport.dataFromString(dataStr)
+
+        return data
     }
 }

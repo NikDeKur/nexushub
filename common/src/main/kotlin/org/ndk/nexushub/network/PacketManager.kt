@@ -3,11 +3,10 @@ package org.ndk.nexushub.network
 import org.ndk.global.scheduler.Scheduler
 import org.ndk.nexushub.network.dsl.HandlerContext
 import org.ndk.nexushub.network.dsl.IncomingContext
-import org.ndk.nexushub.network.packet.Packet
-import org.ndk.nexushub.network.packet.serialize.PacketDeserializer
-import org.ndk.nexushub.network.packet.type.PacketTypes.newInstanceFromId
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.network.transmission.PacketTransmission
+import org.ndk.nexushub.packet.serialize.PacketDeserializer
+import org.ndk.nexushub.packet.type.PacketTypes.newInstanceFromId
 
 open class PacketManager(val talker: Talker, val scheduler: Scheduler) {
 
@@ -33,21 +32,26 @@ open class PacketManager(val talker: Talker, val scheduler: Scheduler) {
 
         responses[nextSequential] = transmission
 
-        val timeout = reaction.timeout
-        if (timeout != null) {
-            transmission.timeoutTask = scheduler.runTaskLater(timeout) {
+        reaction.timeouts.forEach {
+            val timeout = it.key
+            val task = scheduler.runTaskLater(timeout) {
+
+                // Check that we haven't yet received a packet
+                // If the packet came just in time of timeout we don't want to invoke timeout
                 if (!transmission.received) {
-                    transmission.invokeTimeout(talker)
+                    transmission.invokeTimeout(timeout, talker)
                     responses.remove(nextSequential)
+                    transmission.timeoutTasks.remove(timeout)
                 }
             }
+            transmission.timeoutTasks[timeout] = task
         }
 
         return packet
     }
 
 
-    suspend fun processIncomingPacket(bytes: ByteArray): IncomingContext<Packet>? {
+    suspend fun processIncomingPacket(bytes: ByteArray): IncomingContext<org.ndk.nexushub.packet.Packet>? {
         var seq: UByte? = null
         var response: PacketTransmission<*>? = null
         try {
@@ -67,7 +71,7 @@ open class PacketManager(val talker: Talker, val scheduler: Scheduler) {
 
             response?.processReceived(talker, instance)
 
-            return HandlerContext.Incoming(talker, instance)
+            return HandlerContext.Receive(talker, instance, response != null)
 
 
         } catch (e: Exception) {
