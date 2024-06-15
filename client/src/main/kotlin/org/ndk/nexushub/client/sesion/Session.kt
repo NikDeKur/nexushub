@@ -1,7 +1,6 @@
 package org.ndk.nexushub.client.sesion
 
-import org.ndk.klib.complete
-import org.ndk.klib.completedFuture
+import dev.nikdekur.ndkore.ext.*
 import org.ndk.nexushub.client.hook.HooksExecutor
 import org.ndk.nexushub.client.hook.WhenSessionLoadedHook
 import org.ndk.nexushub.client.service.NexusService

@@ -35,13 +35,28 @@ class KtorTalker(val session: DefaultWebSocketServerSession) : Talker {
     override suspend fun close(code: Short, reason: String) {
         withContext(NexusHub.blockingScope.coroutineContext) {
             session.close(CloseReason(code, reason))
+            TalkersManager.cleanUp(addressHash)
         }
     }
 
+
+
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is KtorTalker) return false
+        return this.addressHash == other.addressHash
+    }
+
+    override fun hashCode(): Int {
+        return addressHash
+    }
+
+    override fun toString(): String {
+        return "KtorTalker(address='$addressHash')"
+    }
 }
 
-// Hardcoded for ktor websocket.
-// Remove if nexushub will be used with other websocket implementations
+
 suspend inline fun Talker.close(code: CloseReason.Codes, reason: String) {
     close(code.code, reason)
 }

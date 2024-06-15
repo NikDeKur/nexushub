@@ -2,11 +2,9 @@
 
 package org.ndk.nexushub.client
 
+import dev.nikdekur.ndkore.ext.*
+import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import kotlinx.coroutines.*
-import org.ndk.global.scheduler.impl.CoroutineScheduler
-import org.ndk.klib.forEachSafe
-import org.ndk.klib.info
-import org.ndk.klib.smartAwait
 import org.ndk.nexushub.client.connection.ConnectException
 import org.ndk.nexushub.client.connection.NexusHubConnection
 import org.ndk.nexushub.client.service.NexusService
@@ -103,8 +101,9 @@ class NexusHub(val builder: Builder) {
         var node: String = ""
         var host: String = ""
         var port: Int = 0
-        var username: String = ""
+        var login: String = ""
         var password: String = ""
+
         internal var onReady: () -> Unit = {}
 
         @NexusHubBuilderDSL
@@ -116,7 +115,7 @@ class NexusHub(val builder: Builder) {
             check(node.isNotEmpty()) { "Node is not set" }
             check(host.isNotEmpty()) { "Host is not set" }
             check(port > 0) { "Port is not set" }
-            check(username.isNotEmpty()) { "Username is not set" }
+            check(login.isNotEmpty()) { "Login is not set" }
             check(password.isNotEmpty()) { "Password is not set" }
             return NexusHub(this)
         }
@@ -138,7 +137,7 @@ class NexusHub(val builder: Builder) {
             builder.node = getEnv("NEXUSHUB_NODE")
             builder.host = getEnv("NEXUSHUB_HOST")
             builder.port = getEnv("NEXUSHUB_PORT").toInt()
-            builder.username = getEnv("NEXUSHUB_USERNAME")
+            builder.login = getEnv("NEXUSHUB_USERNAME")
             builder.password = getEnv("NEXUSHUB_PASSWORD")
             builder.block()
             return builder.build()

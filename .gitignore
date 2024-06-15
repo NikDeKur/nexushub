@@ -38,4 +38,3 @@ build/
 !**/src/test/**/build/
 gradlew.bat
 gradlew
-gradle-wrapper.jar

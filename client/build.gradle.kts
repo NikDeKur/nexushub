@@ -17,9 +17,8 @@ version = "1.0.0"
 
 repositories {
     mavenCentral()
-    flatDir {
-        dirs("C:/Users/nikdekur/.m2/repository/org/ndk/NDKGlobal/1.0.0")
-    }
+    mavenLocal()
+    google()
 }
 
 dependencies {
@@ -38,17 +37,14 @@ dependencies {
 }
 
 val javaVersion = JavaVersion.VERSION_11
-val jlv = JavaLanguageVersion.of(javaVersion.majorVersion)
-kotlin {
-    jvmToolchain {
-        languageVersion.set(jlv)
-    }
-}
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
     withJavadocJar()
     withSourcesJar()
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(javaVersion.majorVersion))
+    }
 }
 
 publishing {

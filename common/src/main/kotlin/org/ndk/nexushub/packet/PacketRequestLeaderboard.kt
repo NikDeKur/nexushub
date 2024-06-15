@@ -1,6 +1,6 @@
 package org.ndk.nexushub.packet
 
-import org.ndk.klib.buildRepresentation
+import dev.nikdekur.ndkore.ext.buildRepresentation
 import org.ndk.nexushub.packet.serialize.PacketSerializer
 import org.ndk.nexushub.packet.type.PacketTypes
 

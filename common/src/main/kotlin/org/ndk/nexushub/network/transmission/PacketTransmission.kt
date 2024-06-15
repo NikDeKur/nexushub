@@ -1,8 +1,8 @@
 package org.ndk.nexushub.network.transmission
 
+import dev.nikdekur.ndkore.ext.smartAwait
+import dev.nikdekur.ndkore.scheduler.SchedulerTask
 import kotlinx.coroutines.CompletableDeferred
-import org.ndk.global.scheduler.SchedulerTask
-import org.ndk.klib.smartAwait
 import org.ndk.nexushub.network.dsl.HandlerContext
 import org.ndk.nexushub.network.dsl.PacketReaction
 import org.ndk.nexushub.network.dsl.ReceiveHandler

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.network.NexusData
 import org.ndk.nexushub.util.indexOptions
 
@@ -87,6 +88,7 @@ class ScopeCollection(val collection: MongoCollection<Document>) {
     suspend fun getTopPosition(holderId: String, field: String, value: Double): Long {
         // Count the number of documents that have a value greater than the given value,
         // And the holderId is not the given holderId (to exclude the given holderId)
+        logger.info("Getting top position for $holderId with $field > $value")
         val filter = Filters.and(
             Filters.gt(field, value),
             Filters.ne("holderId", holderId)

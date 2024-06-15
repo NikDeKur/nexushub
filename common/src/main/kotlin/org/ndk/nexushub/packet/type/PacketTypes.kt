@@ -9,8 +9,6 @@ object PacketTypes {
 
     val OK = new<PacketOk>()
     val ERROR = new<PacketError>()
-    val PING = new<PacketPing>()
-    val PONG = new<PacketPong>()
     val AUTH = new<PacketAuth>()
     val LOAD_DATA = new<PacketLoadData>()
     val SAVE_DATA = new<PacketSaveData>()

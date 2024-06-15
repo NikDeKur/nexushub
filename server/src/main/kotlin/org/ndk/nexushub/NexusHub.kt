@@ -2,19 +2,17 @@
 
 package org.ndk.nexushub
 
+import dev.nikdekur.ndkore.ext.addBlockingShutdownHook
+import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.util.logging.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
 import net.mamoe.yamlkt.Yaml
-import org.ndk.global.scheduler.impl.CoroutineScheduler
-import org.ndk.klib.addBlockingShutdownHook
 import org.ndk.nexushub.auth.account.AccountManager
 import org.ndk.nexushub.config.NexusConfig
 import org.ndk.nexushub.database.Database
@@ -31,7 +29,7 @@ object NexusHub {
 
     lateinit var logger: Logger
 
-    val blockingScope = CoroutineScheduler(CoroutineScope(Dispatchers.IO + SupervisorJob()))
+    val blockingScope = CoroutineScheduler.fromSupervisor(Dispatchers.IO)
 
     lateinit var config: NexusConfig
 
@@ -66,6 +64,15 @@ object NexusHub {
 
             AccountManager.init()
             ScopesManager.init()
+
+//            AccountManager.newAccount(
+//                login = ,
+//                password = ,
+//                allowedScopes = setOf()
+//            )
+
+
+            logger.info("Connected to the database")
         }
     }
 }

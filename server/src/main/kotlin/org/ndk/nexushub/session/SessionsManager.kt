@@ -1,11 +1,11 @@
 package org.ndk.nexushub.session
 
+import dev.nikdekur.ndkore.ext.parallel
+import dev.nikdekur.ndkore.map.multi.ConcurrentMultiHashMap
+import dev.nikdekur.ndkore.map.set.ConcurrentSetsHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
-import org.ndk.global.map.multi.ConcurrentMultiHashMap
-import org.ndk.global.map.set.ConcurrentSetsHashMap
-import org.ndk.klib.parallel
 import org.ndk.nexushub.NexusHub.config
 import org.ndk.nexushub.node.ClientNode
 import org.ndk.nexushub.scope.Scope

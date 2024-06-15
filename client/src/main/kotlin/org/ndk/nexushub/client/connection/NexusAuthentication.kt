@@ -18,14 +18,14 @@ class NexusAuthentication(
 
     private suspend fun authenticate() {
         val data = connection.hub.builder
-        val authPacket = org.ndk.nexushub.packet.PacketAuth(data.username, data.password, data.node)
+        val authPacket = PacketAuth(data.login, data.password, data.node)
 
         talker.sendPacket(authPacket) {
             timeout(5000L * (attempt + 1)) {
                 retry()
             }
 
-            receive<org.ndk.nexushub.packet.PacketOk> {}
+            receive<PacketOk> {}
         }.await()
     }
 
@@ -39,6 +39,6 @@ class NexusAuthentication(
     }
 
     private fun fail(): Nothing {
-        throw ConnectException.NoResponseException("Failed to authenticate after 3 attempts.")
+        throw ConnectException.NoResponse("Failed to authenticate after 3 attempts.")
     }
 }

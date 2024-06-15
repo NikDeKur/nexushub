@@ -1,6 +1,6 @@
 package org.ndk.nexushub.network
 
-import org.ndk.global.scheduler.Scheduler
+import dev.nikdekur.ndkore.scheduler.Scheduler
 import org.ndk.nexushub.network.dsl.HandlerContext
 import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker

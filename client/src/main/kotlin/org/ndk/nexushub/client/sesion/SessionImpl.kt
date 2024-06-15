@@ -1,6 +1,6 @@
 package org.ndk.nexushub.client.sesion
 
-import org.ndk.klib.removeEmpty
+import dev.nikdekur.ndkore.ext.*
 import org.ndk.nexushub.client.hook.HooksExecutor
 import org.ndk.nexushub.client.service.NexusService
 import org.ndk.nexushub.data.LeaderboardEntry
@@ -31,7 +31,11 @@ open class SessionImpl<H : Any, S : Session<H, S>>(
     var savedAt = -1L
 
     override fun hasToBeSaved(): Boolean {
+        service.logger.info {
+            "Checking if session has to be saved. Updated at: $updatedAt, Saved at: $savedAt, Data: $data"
+        }
         val has = updatedAt > savedAt && data.isNotEmpty()
+        service.logger.info { "Session has to be saved: $has" }
         if (has) {
             savedAt = System.currentTimeMillis()
         }

@@ -26,6 +26,9 @@ object PasswordEncryptor {
         return AVERAGE_HASH_TIME_MS + Random.nextInt(-AVERAGE_HASH_TIME_RANGE, AVERAGE_HASH_TIME_RANGE)
     }
 
+    fun encryptNew(password: String): EncryptedPassword {
+        return encrypt(password, newSalt())
+    }
 
     fun encrypt(password: String, salt: Salt): EncryptedPassword {
         val builder = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)

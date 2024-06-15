@@ -1,6 +1,7 @@
 package org.ndk.nexushub.client.hook
 
-import org.ndk.global.interfaces.Snowflake
+import dev.nikdekur.ndkore.interfaces.Snowflake
+
 
 abstract class Hook : Snowflake<String>, () -> Unit {
     override fun toString(): String {

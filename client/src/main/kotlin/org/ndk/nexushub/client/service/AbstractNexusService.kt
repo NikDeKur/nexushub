@@ -4,8 +4,7 @@ import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import org.ndk.klib.info
-import org.ndk.klib.parallel
+import dev.nikdekur.ndkore.ext.*
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.client.sesion.Session
 import org.ndk.nexushub.data.Leaderboard

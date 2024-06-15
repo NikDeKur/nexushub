@@ -1,7 +1,6 @@
 package org.ndk.nexushub.client.hook
 
-import org.ndk.klib.mutableForEach
-import org.ndk.klib.warn
+import dev.nikdekur.ndkore.ext.*
 import org.ndk.nexushub.client.sesion.Session
 
 class HooksExecutor(val session: Session<*, *>) {

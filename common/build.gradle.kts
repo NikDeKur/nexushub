@@ -1,6 +1,6 @@
 @file:Suppress("PropertyName")
 
-val ndkglobal_version: String by project
+val ndkore_version: String by project
 
 
 plugins {
@@ -13,13 +13,11 @@ version = "1.0.0"
 
 repositories {
     mavenCentral()
-    flatDir {
-        dirs("C:/Users/nikdekur/.m2/repository/org/ndk/NDKGlobal/1.0.0")
-    }
+    mavenLocal()
 }
 
 dependencies {
-    api("org.ndk:NDKGlobal:$ndkglobal_version")
+    api("dev.nikdekur:ndkore:$ndkore_version")
     api("com.google.code.gson:gson:2.10.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 

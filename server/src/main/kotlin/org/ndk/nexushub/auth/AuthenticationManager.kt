@@ -1,11 +1,11 @@
 package org.ndk.nexushub.auth
 
-import io.ktor.websocket.*
-import kotlinx.coroutines.CancellationException
+import dev.nikdekur.ndkore.ext.info
+import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.ndk.klib.info
+import org.ndk.nexushub.NexusHub
 import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.auth.account.AccountManager
 import org.ndk.nexushub.auth.password.EncryptedPassword
@@ -14,37 +14,57 @@ import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.node.ClientNode
 import org.ndk.nexushub.node.NodesManager
-import org.ndk.nexushub.node.TalkersManager
-import org.ndk.nexushub.node.close
+import org.ndk.nexushub.packet.Packet
 import org.ndk.nexushub.packet.PacketAuth
+import org.ndk.nexushub.packet.PacketOk
+import org.ndk.nexushub.util.CloseCode
+import org.ndk.nexushub.util.close
 
 object AuthenticationManager {
-    suspend fun executePacket(talker: Talker, context: IncomingContext<org.ndk.nexushub.packet.Packet>) {
-        try {
-            val packet = context.packet
 
-            if (packet !is org.ndk.nexushub.packet.PacketPong)
-                logger.info { "Received packet: $packet" }
+    val authenticationWaiter = CoroutineScheduler.fromSupervisor(Dispatchers.IO)
 
-            if (packet is PacketAuth) {
+    /**
+     * Timeout that is made from config timeout value and [PasswordEncryptor.AVERAGE_HASH_TIME_MS]
+     */
+    val authTimeout by lazy {
+        val cfgTimeout = NexusHub.config.network.authentication_timeout
+        PasswordEncryptor.AVERAGE_HASH_TIME_MS + cfgTimeout
+    }
+
+    fun waitForAuthentication(talker: Talker) {
+        authenticationWaiter.runTaskLater(authTimeout) {
+            if (NodesManager.getAuthenticatedNode(talker) != null) return@runTaskLater
+
+            // A Node is not found, so authentication hasn't been done
+            talker.close(CloseCode.AUTHENTICATION_TIMEOUT, "You haven't managed to authenticate in time")
+        }
+    }
+
+    suspend fun executePacket(talker: Talker, context: IncomingContext<Packet>) {
+        when (context.packet) {
+            is PacketAuth -> {
+                val node = NodesManager.getAuthenticatedNode(talker)
+                if (node != null) {
+                    node.close(CloseCode.UNEXPECTED_BEHAVIOUR, "You are already authenticated!")
+                    return
+                }
+
                 @Suppress("UNCHECKED_CAST")
                 processAuth(talker, context as IncomingContext<PacketAuth>)
-            } else {
+            }
+
+            else -> {
+
                 // Authenticated node required
                 val node = NodesManager.getAuthenticatedNode(talker)
                 if (node == null) {
-                    talker.close(CloseReason.Codes.VIOLATED_POLICY, "Node is not authenticated")
+                    talker.close(CloseCode.NODE_IS_NOT_AUTHENTICATED, "Authenticate before accessing this!")
                     return
                 }
 
                 node.processAuthenticatedPacket(context)
             }
-        } catch (e: CancellationException) {
-            // Connection closed while a processing packet
-            // Do nothing
-        } catch (e: Exception) {
-            logger.info { "Error while processing packet: $e" }
-            e.printStackTrace()
         }
     }
 
@@ -57,49 +77,40 @@ object AuthenticationManager {
             // Imitate hashing delay to hacker think login exists
             logger.info { "Account not found: ${packet.login}" }
             delay(PasswordEncryptor.averageHashTime())
-            talker.close(CloseReason.Codes.CANNOT_ACCEPT, "Invalid Credentials")
-            TalkersManager.removeTalker(talker.addressHash)
+            talker.close(CloseCode.WRONG_CREDENTIALS, "")
             return
         }
 
         val isCorrect = verifyPassword(account.password, packet.password)
         if (!isCorrect) {
             logger.info { "Incorrect password for account: ${packet.login}" }
-            talker.close(CloseReason.Codes.CANNOT_ACCEPT, "Invalid Credentials")
+            talker.close(CloseCode.WRONG_CREDENTIALS, "")
             return
         }
 
         val nodeStr = packet.node
-        if (!isValidNode(nodeStr)) {
-            disconnect(talker, "Provided node name is not valid")
+        if (!isValidNodeName(nodeStr)) {
+            talker.close(CloseCode.INVALID_DATA, "Provided node name is not valid")
             return
         }
 
         if (NodesManager.isNodeExists(talker)) {
-            disconnect(talker, "Node already exists")
+            talker.close(CloseCode.INVALID_DATA, "Node already exists")
             return
         }
 
         val node = ClientNode(talker, nodeStr, account)
         NodesManager.addNode(node)
 
-        context.respond(org.ndk.nexushub.packet.PacketOk("Authentication successful"))
+        context.respond(PacketOk("Authentication successful"))
 
         logger.info { "Authenticated node: $node" }
     }
 
-
-    suspend fun disconnect(talker: Talker, reason: String) {
-        logger.info { "Disconnecting node: $reason" }
-        TalkersManager.removeTalker(talker.addressHash)
-        talker.close(CloseReason.Codes.NORMAL, reason)
-    }
-
     val validNodePattern = Regex("[a-zA-Z0-9_]+")
-    fun isValidNode(node: String): Boolean {
+    fun isValidNodeName(node: String): Boolean {
         return validNodePattern.matches(node) && node.length <= 32 && node.length >= 4
     }
-
 
     val encryptingDispatcher = Dispatchers.IO
 

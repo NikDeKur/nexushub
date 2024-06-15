@@ -6,22 +6,22 @@ import java.util.concurrent.ConcurrentHashMap
 object NodesManager {
 
     val connectedNodes = ConcurrentHashMap<String, ClientNode>()
-    val socketToNode = ConcurrentHashMap<Talker, ClientNode>()
+    val socketToNode = ConcurrentHashMap<Int, ClientNode>()
 
     fun addNode(node: ClientNode) {
         connectedNodes[node.id] = node
-        socketToNode[node.talker] = node
+        socketToNode[node.talker.addressHash] = node
     }
 
 
 
     fun removeNode(node: ClientNode) {
         connectedNodes.remove(node.id)
-        socketToNode.remove(node.talker)
+        socketToNode.remove(node.talker.addressHash)
     }
 
     fun getAuthenticatedNode(talker: Talker): ClientNode? {
-        return socketToNode[talker]
+        return socketToNode[talker.addressHash]
     }
 
     fun isNodeExists(node: String): Boolean {
@@ -29,7 +29,7 @@ object NodesManager {
     }
 
     fun isNodeExists(talker: Talker): Boolean {
-        return socketToNode.containsKey(talker)
+        return socketToNode.containsKey(talker.addressHash)
     }
 
     suspend fun closeAll(code: Short, reason: String) {

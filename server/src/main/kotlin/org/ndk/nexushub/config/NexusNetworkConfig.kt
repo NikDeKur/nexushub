@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 class NexusNetworkConfig(
-    val max_connections: Int
+    val max_connections: Long,
+    val authentication_timeout: Long,
 )

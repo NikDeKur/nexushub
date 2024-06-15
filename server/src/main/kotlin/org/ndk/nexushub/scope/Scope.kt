@@ -4,13 +4,11 @@ package org.ndk.nexushub.scope
 
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
+import dev.nikdekur.ndkore.ext.*
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withPermit
-import org.ndk.klib.forEachSafe
-import org.ndk.klib.recordTiming
-import org.ndk.klib.removeEmpty
 import org.ndk.nexushub.NexusHub.blockingScope
 import org.ndk.nexushub.NexusHub.config
 import org.ndk.nexushub.NexusHub.logger
@@ -79,21 +77,30 @@ data class Scope(
 
 
 
-    suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard {
+    suspend fun getLeaderboard(path: String, startFrom: Int, limit: Int): Leaderboard {
         val leaderboard = logger.recordTiming(name = "getLeaderboard") {
-            val rawLeaderboard = collection.getLeaderboard(field, startFrom, limit)
+            val rawLeaderboard = collection.getLeaderboard(path, startFrom, limit)
 
             logger.info("Raw leaderboard: $rawLeaderboard")
 
-            ensureIndexAsync(field)
+            val pathList = path.split('.')
+
+            ensureIndexAsync(path)
 
             val leaderboard = Leaderboard(rawLeaderboard.size)
 
             rawLeaderboard.forEachSafe {
                 val holderId = it["holderId"] as String
                 @Suppress("kotlin:S6611") // We know that the field is present
-                val value = (it[field]!! as Number).toDouble()
-                leaderboard.addEntry(holderId, value)
+
+                // Get the value from the nested path
+                var value: Any = it
+                pathList.forEach { pathPart ->
+                    value = (value as? Map<*, *>)?.get(pathPart) ?: return@forEach
+                }
+                val number = value as? Number ?: return@forEachSafe
+
+                leaderboard.addEntry(holderId, number.toDouble())
             }
             leaderboard
         }
@@ -115,7 +122,10 @@ data class Scope(
     suspend fun getTopPosition(holderId: String, field: String): LeaderboardEntry? {
         val position = logger.recordTiming(name = "getTopPosition") {
 
-            val fieldValue = loadData(holderId)[field] ?: return null
+            val data = loadData(holderId)
+            logger.info("Data is $data")
+            val fieldValue = data.getNested(field, ".") ?: return null
+            logger.info("Field Value: $fieldValue")
             if (fieldValue !is Number)
                 throw NumberFormatException("Field $field is not a number")
             val value = fieldValue.toDouble()

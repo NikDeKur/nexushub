@@ -1,7 +1,6 @@
-@file:Suppress("NOTHING_TO_INLINE")
-
 package org.ndk.nexushub.node
 
+import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.network.talker.Talker
 import java.util.concurrent.ConcurrentHashMap
 
@@ -19,5 +18,18 @@ object TalkersManager {
 
     fun removeTalker(talker: Int) {
         talkers.remove(talker)
+    }
+
+
+    fun cleanUp(address: Int) {
+        getExistingTalker(address)?.let { talker ->
+            val node = NodesManager.getAuthenticatedNode(talker)
+            if (node != null) {
+                logger.info("Node ${node.id} disconnected")
+                node.cleanUp()
+            } else {
+                removeTalker(address)
+            }
+        }
     }
 }

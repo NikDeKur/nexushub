@@ -2,11 +2,11 @@
 
 package org.ndk.nexushub.database.scope
 
-import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import kotlinx.coroutines.flow.firstOrNull
 import org.bson.conversions.Bson
 import org.ndk.nexushub.database.Database
+import org.ndk.nexushub.database.account.eq
 import org.ndk.nexushub.util.ensureCollectionExists
 
 
@@ -35,5 +35,5 @@ object ScopesCollection {
     }
 
 
-    inline fun filterScope(scope: String): Bson = Filters.eq(ScopeDAO::name.name, scope)
+    inline fun filterScope(scope: String): Bson = ScopeDAO::name.name eq scope
 }

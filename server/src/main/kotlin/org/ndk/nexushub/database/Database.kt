@@ -9,10 +9,7 @@ import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import org.bson.codecs.configuration.CodecRegistries.fromProviders
 import org.bson.codecs.configuration.CodecRegistries.fromRegistries
 import org.bson.codecs.pojo.PojoCodecProvider
-import org.ndk.global.scheduler.Scheduler
-import org.ndk.global.scheduler.impl.CoroutineScheduler
 import org.ndk.nexushub.NexusHub
-import org.ndk.nexushub.NexusHub.logger
 
 
 object Database {
@@ -20,17 +17,7 @@ object Database {
     lateinit var client: MongoClient
     lateinit var database: MongoDatabase
 
-    lateinit var scheduler: Scheduler
-
     fun init() {
-
-        val user = NexusHub.config.database.username
-        val password = NexusHub.config.database.password
-
-        scheduler = CoroutineScheduler(NexusHub.blockingScope)
-
-        val connectionString = "mongodb+srv://$user:$password@cluster.wtky2pf.mongodb.net/?retryWrites=true&w=majority&appName=cluster"
-
         val serverApi = ServerApi.builder()
             .version(ServerApiVersion.V1)
             .build()
@@ -40,8 +27,10 @@ object Database {
             fromProviders(PojoCodecProvider.builder().automatic(true).build())
         )
 
+        val connectionString = ConnectionString(NexusHub.config.database.connection)
+
         val mongoClientSettings = MongoClientSettings.builder()
-            .applyConnectionString(ConnectionString(connectionString))
+            .applyConnectionString(connectionString)
             .codecRegistry(pojoCodecRegistry)
             .serverApi(serverApi)
             .build()
@@ -50,7 +39,5 @@ object Database {
         // Create a new client and connect to the server
         client = MongoClient.create(mongoClientSettings)
         database = client.getDatabase("nexushub")
-
-        logger.info("Connected to the database")
     }
 }

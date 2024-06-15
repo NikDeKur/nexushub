@@ -1,8 +1,8 @@
 package org.ndk.nexushub
 
+import dev.nikdekur.ndkore.ext.addShutdownHook
+import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import kotlinx.coroutines.*
-import org.ndk.global.scheduler.impl.CoroutineScheduler
-import org.ndk.klib.addShutdownHook
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.client.service.AbstractNexusService
 import org.ndk.nexushub.client.sesion.SessionImpl
@@ -17,7 +17,7 @@ object TestSyncClient {
         node = "TestSyncClient"
         host = "localhost"
         port = 8085
-        username = "NikDeKur"
+        login = "NikDeKur"
         password = "Nikita08"
         onReady {
             initChat()

@@ -1,10 +1,10 @@
 package org.ndk.nexushub.client.connection
 
+import dev.nikdekur.ndkore.scheduler.Scheduler
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import org.ndk.global.scheduler.Scheduler
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.network.PacketManager
 import org.ndk.nexushub.network.dsl.IncomingContext

@@ -12,6 +12,7 @@ import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.packet.*
 import org.ndk.nexushub.packet.PacketError.Level
+import org.ndk.nexushub.util.CloseCode
 
 class NexusHubConnection(val hub: NexusHub) {
 
@@ -38,8 +39,8 @@ class NexusHubConnection(val hub: NexusHub) {
                     port = data.port,
                     path = "/connection",
                 )
-            } catch (e: Exception) {
-                throw ConnectException.NoResponseException("No response from server during connection attempt")
+            } catch (e: NexusException) {
+                throw ConnectException.NoResponse("No response from server during connection attempt")
             }
 
 
@@ -78,15 +79,57 @@ class NexusHubConnection(val hub: NexusHub) {
             return
         }
 
-        val code  = reason.code
-        when (code) {
-            4000.toShort() -> {
-                throw ConnectException.WrongCredentialsException("Server rejected connection due to wrong credentials")
-            }
-            else -> {
-                logger.warn("WebSocket channel closed. Reason: ${reason.message}")
-                return
-            }
+        val code = reason.code
+        val enum = CloseCode.entries.getOrNull(code.toInt())
+        if (enum == null) {
+            logger.warn("WebSocket channel closed with unknown reason. Code: $code")
+            return
+        }
+
+        val comment = reason.message
+
+        when (enum) {
+            CloseCode.WRONG_CREDENTIALS ->
+                throw ConnectException.WrongCredentials(
+                    "Server rejected connection due to wrong credentials",
+                    comment
+                )
+
+
+            CloseCode.INVALID_DATA ->
+                throw ConnectException.InvalidData(
+                    "Server rejected connection due to invalid data",
+                    comment
+                )
+
+
+            CloseCode.AUTHENTICATION_TIMEOUT ->
+                throw ConnectException.AuthenticationTimeout(
+                    "Server rejected connection due to authentication timeout",
+                    comment
+                )
+
+
+            CloseCode.TOO_MANY_CONNECTIONS ->
+                throw ConnectException.TooManyConnections(
+                    "Server rejected connection due to wrong credentials",
+                    comment
+                )
+
+
+            CloseCode.NODE_IS_NOT_AUTHENTICATED ->
+                throw ConnectException.NodeIsNotAuthenticated(
+                    "Server rejected connection because of trying to perform operation, " +
+                            "that requires authentication, without authentication",
+                    comment
+                )
+
+
+            CloseCode.UNEXPECTED_BEHAVIOUR ->
+                throw NexusException.UnexpectedBehaviour(
+                    "Server rejected connection due to unexpected behaviour",
+                    comment
+                )
         }
     }
 
@@ -98,7 +141,7 @@ class NexusHubConnection(val hub: NexusHub) {
      * @param message Error message / Comment
      * @param e Exception that caused the error
      */
-    internal suspend fun fatalError(message: String, e: Exception? = null) {
+    internal suspend fun fatalError(message: String, e: NexusException? = null) {
         logger.error("Fatal error occurred: $message", e)
         if (isConnected) {
             if (isAuth)
@@ -164,9 +207,13 @@ class NexusHubConnection(val hub: NexusHub) {
 
         val batchMap = HashMap<String, String>()
 
+
+
         val batchPacket = PacketBatchSaveData(scopeId, batchMap)
         service.sessions.forEach {
+            logger.info("Processing session: ${it.holderId}. Data: ${it.data}")
             if (!it.hasToBeSaved()) return@forEach
+            logger.info("Session has to be saved!")
 
             // Invoke any hooks before saving the data
             it.beforeSaveHooks.executeHooks()
@@ -174,13 +221,12 @@ class NexusHubConnection(val hub: NexusHub) {
             batchMap[it.holderId] = dataStr
         }
 
-        context.respond(batchPacket)
+        if (batchMap.isEmpty())
+            context.respond(PacketOk("No data to save"))
+        else
+            context.respond(batchPacket)
     }
 
-
-    suspend fun processPing(context: IncomingContext<PacketPing>) {
-        context.respond(PacketPong())
-    }
 
     suspend fun onPacketReceived(context: IncomingContext<Packet>) {
         val packet = context.packet
@@ -192,7 +238,6 @@ class NexusHubConnection(val hub: NexusHub) {
 
         @Suppress("UNCHECKED_CAST")
         when (packet) {
-            is PacketPing -> processPing(context as IncomingContext<PacketPing>)
             is PacketRequestHolderSync -> processSyncHolderData(context as IncomingContext<PacketRequestHolderSync>)
             is PacketRequestSync -> processSyncData(context as IncomingContext<PacketRequestSync>)
             else -> logger.warn("Unhandled packet: $packet")

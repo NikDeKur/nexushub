@@ -1,5 +1,6 @@
 network:
   max_connections: 10
+  authentication_timeout: 1000
 
 data:
   cache_expiration: 300  # seconds (5 minutes)
@@ -8,5 +9,4 @@ data:
   sync_parallelism: 16
 
 database:
-  username: nikdekur
-  password: e7yRu1XfZoIgbK0V
+  connection: "mongodb+srv://nikdekur:3bylikcv0wCnh8us@cluster.wtky2pf.mongodb.net/?retryWrites=true&w=majority&appName=cluster"

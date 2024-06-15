@@ -25,9 +25,7 @@ application {
 
 repositories {
     mavenCentral()
-    flatDir {
-        dirs("C:/Users/nikdekur/.m2/repository/org/ndk/NDKGlobal/1.0.0")
-    }
+    mavenLocal()
 }
 
 dependencies {

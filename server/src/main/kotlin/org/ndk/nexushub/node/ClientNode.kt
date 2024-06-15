@@ -2,9 +2,9 @@
 
 package org.ndk.nexushub.node
 
+import dev.nikdekur.ndkore.ext.isBlankOrEmpty
+import dev.nikdekur.ndkore.interfaces.Snowflake
 import kotlinx.coroutines.awaitAll
-import org.ndk.global.interfaces.Snowflake
-import org.ndk.klib.isBlankOrEmpty
 import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.auth.account.Account
 import org.ndk.nexushub.network.GsonSupport
@@ -155,7 +155,7 @@ class ClientNode(
 
         try {
             setData(scope, holderId, dataStr)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             context.respond(
                 PacketError(
                     Level.ERROR,
@@ -237,6 +237,7 @@ class ClientNode(
     }
 
     suspend fun processTopPositionPacket(context: IncomingContext<PacketRequestTopPosition>) {
+        logger.info("Processing top position packet")
         val packet = context.packet
         val scopeId = packet.scopeId
         val holderId = packet.holderId
@@ -357,6 +358,10 @@ class ClientNode(
                     return@receive
                 }
                 saveBatchDataSafe(scope, packet.data)
+            }
+
+            receive<PacketOk> {
+                // Nothing to save
             }
 
             receive {

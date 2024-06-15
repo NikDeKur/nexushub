@@ -1,9 +1,8 @@
 package org.ndk.nexushub
 
+import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
+import dev.nikdekur.ndkore.ext.*
 import kotlinx.coroutines.*
-import org.ndk.global.scheduler.impl.CoroutineScheduler
-import org.ndk.klib.input
-import org.ndk.klib.parallel
 import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.client.service.AbstractNexusService
 import org.ndk.nexushub.client.sesion.SessionImpl
@@ -17,7 +16,7 @@ object TestConsoleClient {
         node = "TestConsoleClient"
         host = "localhost"
         port = 8085
-        username = "NikDeKur"
+        login = "NikDeKur"
         password = "Nikita08"
         onReady {
             initChat()
@@ -112,10 +111,10 @@ object TestConsoleClient {
                     session.saveData()
                     println("Data saved")
                 }
-//                5 -> {
-//                    val field
-//                    val leaderboard = members.getLeaderboard()
-//                }
+                5 -> {
+                    val leaderboard = members.getLeaderboard("balances.gold", 0, 10)
+                    println(leaderboard)
+                }
 
             }
         }
