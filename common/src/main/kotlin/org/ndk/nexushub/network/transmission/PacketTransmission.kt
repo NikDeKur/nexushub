@@ -29,9 +29,6 @@ data class PacketTransmission<R>(
     var received = false
 
     val result = CompletableDeferred<R>()
-    val processed: Boolean
-        get() = result.isCompleted
-
 
     val timeoutTasks = HashMap<Long, SchedulerTask>()
 

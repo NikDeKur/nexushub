@@ -1,30 +1,36 @@
 package org.ndk.nexushub.node
 
+import dev.nikdekur.ndkore.ext.debug
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.ndk.nexushub.NexusHub
+import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.network.PacketManager
 import org.ndk.nexushub.network.addressHash
+import org.ndk.nexushub.network.addressStr
 import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.network.transmission.PacketTransmission
 import org.ndk.nexushub.packet.Packet
 
-class KtorTalker(val session: DefaultWebSocketServerSession) : Talker {
+class KtorTalker(val websocket: DefaultWebSocketServerSession) : Talker {
 
-    override val addressHash = session.addressHash
+    override val addressHash = websocket.addressHash
+    override val addressStr = websocket.addressStr
 
-    val packetManager = PacketManager(this, NexusHub.blockingScope)
+
+    val packetManager = PacketManager(this, Dispatchers.IO)
 
     override val isOpen: Boolean
-        get() = session.isActive
+        get() = websocket.closeReason.isActive
 
     override suspend fun send(transmission: PacketTransmission<*>) {
         withContext(NexusHub.blockingScope.coroutineContext) {
             val bytes = packetManager.processOutgoingTransmission(transmission)
-            session.send(bytes)
+            logger.debug { "[$addressStr] Sending packet ${transmission.packet}" }
+            websocket.send(bytes)
         }
     }
 
@@ -34,7 +40,7 @@ class KtorTalker(val session: DefaultWebSocketServerSession) : Talker {
 
     override suspend fun close(code: Short, reason: String) {
         withContext(NexusHub.blockingScope.coroutineContext) {
-            session.close(CloseReason(code, reason))
+            websocket.close(CloseReason(code, reason))
             TalkersManager.cleanUp(addressHash)
         }
     }

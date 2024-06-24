@@ -1,172 +1,92 @@
 package org.ndk.nexushub.client.connection
 
-import io.ktor.client.*
-import io.ktor.client.plugins.websocket.*
-import io.ktor.http.*
-import io.ktor.websocket.*
-import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.ndk.nexushub.client.NexusHub
+import org.ndk.nexushub.client.service.NexusService
+import org.ndk.nexushub.client.sesion.Session
 import org.ndk.nexushub.network.dsl.IncomingContext
-import org.ndk.nexushub.network.talker.Talker
-import org.ndk.nexushub.packet.*
+import org.ndk.nexushub.network.dsl.PacketReaction
+import org.ndk.nexushub.network.transmission.PacketTransmission
+import org.ndk.nexushub.packet.Packet
+import org.ndk.nexushub.packet.PacketError
 import org.ndk.nexushub.packet.PacketError.Level
-import org.ndk.nexushub.util.CloseCode
+import org.ndk.nexushub.packet.PacketOk
+import org.ndk.nexushub.packet.`in`.PacketAuth
+import org.ndk.nexushub.packet.`in`.PacketBatchSaveData
+import org.ndk.nexushub.packet.`in`.PacketPong
+import org.ndk.nexushub.packet.`in`.PacketSaveData
+import org.ndk.nexushub.packet.out.PacketPing
+import org.ndk.nexushub.packet.out.PacketRequestSync
+import org.ndk.nexushub.packet.out.PacketStopSession
 
-class NexusHubConnection(val hub: NexusHub) {
+class NexusHubConnection(val hub: NexusHub, val data: ConnectionConfiguration) {
 
-    val client = HttpClient {
-        install(WebSockets)
-    }
+    val receivingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    val packetsFlow = MutableSharedFlow<IncomingContext<out Packet>>()
+        .apply {
+            receivingScope.launch {
+                collect {
+                    receivingScope.launch {
+                        onPacketReceived(it)
+                    }
+                }
+            }
+        }
+
+    val gateway = DefaultGateway(
+        configuration = data.gatewayConfiguration,
+        packetsFlow = packetsFlow,
+        onReady = ::onReady
+    )
 
     val logger = hub.logger
 
-    var talker: Talker? = null
 
-    var isConnected = false
-    var isAuth = false
+    suspend fun start() {
+        gateway.connect()
+    }
 
 
-    suspend fun connect() {
-        withContext(hub.blockingScope.coroutineContext) {
-            val data = hub.builder
+    suspend fun onReady() {
+        logger.info("Trying to authenticate...")
+        val authPacket = PacketAuth(data.login, data.password, data.node)
 
-            val socket = try {
-                client.webSocketSession(
-                    HttpMethod.Get,
-                    host = data.host,
-                    port = data.port,
-                    path = "/connection",
-                )
-            } catch (e: NexusException) {
-                throw ConnectException.NoResponse("No response from server during connection attempt")
+        hub.connection.sendPacket(authPacket) {
+            timeout(5000L) {
+                throw ConnectException.NoResponse("Failed to authenticate, no response.")
             }
 
+            receive<PacketOk> {}
 
-            talker = ServerTalker(hub, socket, hub.blockingScope)
-
-            isConnected = true
-
-            socket.apply {
-                hub.blockingScope.launch {
-                    incoming.consumeEach {
-                        if (it !is Frame.Binary) return@consumeEach
-
-                        // Run as new coroutine to avoid blocking and handle multiple operations
-                        hub.blockingScope.launch consume@ {
-                            val context = talker!!.receive(it.readBytes()) ?: return@consume
-                            onPacketReceived(context)
-                        }
-                    }
-
-                    // Обработка закрытия канала
-                    val reason = closeReason.await()
-                    onClose(reason)
-                }
-
-                NexusAuthentication(this@NexusHubConnection).start()
-
-                logger.info("Authenticated successfully. Connection established.")
-                isAuth = true
+            receive {
+                throw NexusException.UnexpectedBehaviour("Unexpected behaviour while authenticating. Received: $packet", "")
             }
-        }
+        }.await()
+
+        logger.info("Authenticated successfully. Connection established.")
+
+        hub.builder.onReady()
     }
 
-    fun onClose(reason: CloseReason?) {
-        if (reason == null) {
-            logger.error("WebSocket channel closed without reason")
-            return
-        }
-
-        val code = reason.code
-        val enum = CloseCode.entries.getOrNull(code.toInt())
-        if (enum == null) {
-            logger.warn("WebSocket channel closed with unknown reason. Code: $code")
-            return
-        }
-
-        val comment = reason.message
-
-        when (enum) {
-            CloseCode.WRONG_CREDENTIALS ->
-                throw ConnectException.WrongCredentials(
-                    "Server rejected connection due to wrong credentials",
-                    comment
-                )
-
-
-            CloseCode.INVALID_DATA ->
-                throw ConnectException.InvalidData(
-                    "Server rejected connection due to invalid data",
-                    comment
-                )
-
-
-            CloseCode.AUTHENTICATION_TIMEOUT ->
-                throw ConnectException.AuthenticationTimeout(
-                    "Server rejected connection due to authentication timeout",
-                    comment
-                )
-
-
-            CloseCode.TOO_MANY_CONNECTIONS ->
-                throw ConnectException.TooManyConnections(
-                    "Server rejected connection due to wrong credentials",
-                    comment
-                )
-
-
-            CloseCode.NODE_IS_NOT_AUTHENTICATED ->
-                throw ConnectException.NodeIsNotAuthenticated(
-                    "Server rejected connection because of trying to perform operation, " +
-                            "that requires authentication, without authentication",
-                    comment
-                )
-
-
-            CloseCode.UNEXPECTED_BEHAVIOUR ->
-                throw NexusException.UnexpectedBehaviour(
-                    "Server rejected connection due to unexpected behaviour",
-                    comment
-                )
-        }
+    suspend fun stop() {
+        gateway.disconnect()
     }
 
-    /**
-     * Function to runtime handle fatal errors.
-     *
-     * Function will log the error and gracefully disconnect from the server.
-     *
-     * @param message Error message / Comment
-     * @param e Exception that caused the error
-     */
-    internal suspend fun fatalError(message: String, e: NexusException? = null) {
-        logger.error("Fatal error occurred: $message", e)
-        if (isConnected) {
-            if (isAuth)
-                hub.stopServices()
-
-            disconnect()
-        }
+    suspend fun <R> sendPacket(packet: Packet, reaction: PacketReaction.Builder<R>.() -> Unit): PacketTransmission<R> {
+        return gateway.sendPacket(packet, reaction)
     }
 
 
-
-
-
-    suspend fun disconnect() {
-        isConnected = false
-        isAuth = false
-        talker?.close(CloseReason.Codes.NORMAL, "NexusHub client disconnection")
-        client.close()
-    }
-
-
-    suspend fun processSyncHolderData(context: IncomingContext<PacketRequestHolderSync>) {
+    suspend fun processStopSession(context: IncomingContext<PacketStopSession>) {
         val packet = context.packet
-        val scope = packet.scope
+        val scope = packet.scopeId
         val holderId = packet.holderId
+
         val service = hub.getService(scope) ?: return
         val session = service.getExistingSession(holderId)
         if (session == null) {
@@ -180,51 +100,86 @@ class NexusHubConnection(val hub: NexusHub) {
             return
         }
 
-        if (!session.hasToBeSaved())
+        if (!session.hasToBeSaved()) {
+            context.respond(PacketOk("No data to save"))
             return
-
-
-        session.afterLoadHooks.executeHooks()
-        val dataStr = session.serialiseData()
-        val savePacket = PacketSaveData(scope, holderId, dataStr)
-
-        // Expected behaviour is to receive nothing after sync
-        context.respond(savePacket) {
-            receive {
-                logger.warn("Unexpected behaviour while syncing data for $scope:$holderId. Received: $packet")
-            }
-
-            exception {
-                logger.warn("Exception while syncing data!", exception)
-            }
         }
+
+        val data = session.serializeData()
+        val savePacket = PacketSaveData(scope, holderId, data)
+
+        fun <H, S> remove(service: NexusService<H, S>, session: Session<*, *>) {
+            service.removeSession(session as Session<H, S>)
+        }
+
+        remove(service, session)
+
+        context.respond(savePacket)
+    }
+
+    suspend fun processPing(context: IncomingContext<PacketPing>) {
+        context.respond(
+            PacketPong()
+        )
     }
 
     suspend fun processSyncData(context: IncomingContext<PacketRequestSync>) {
         val packet = context.packet
         val scopeId = packet.scope
-        val service = hub.getService(scopeId) ?: return
+
+        logger.info("Processing sync data for $scopeId")
+
+        suspend fun ok() {
+            context.respond(PacketOk("No data to save"))
+        }
+
+        val service = hub.getService(scopeId) ?: return ok()
+        val sessions = service.sessions
+        if (!service.isRunning || sessions.isEmpty())
+            return ok()
+
+        logger.info("Service is running and has sessions")
 
         val batchMap = HashMap<String, String>()
 
-
-
-        val batchPacket = PacketBatchSaveData(scopeId, batchMap)
-        service.sessions.forEach {
-            logger.info("Processing session: ${it.holderId}. Data: ${it.data}")
+        sessions.forEach {
             if (!it.hasToBeSaved()) return@forEach
             logger.info("Session has to be saved!")
 
-            // Invoke any hooks before saving the data
-            it.beforeSaveHooks.executeHooks()
-            val dataStr = it.serialiseData()
-            batchMap[it.holderId] = dataStr
+            val dataStr = it.serializeData()
+            batchMap[it.id] = dataStr
         }
 
+        logger.info("Batch map: $batchMap")
+
+
+
         if (batchMap.isEmpty())
-            context.respond(PacketOk("No data to save"))
-        else
-            context.respond(batchPacket)
+            return ok()
+
+
+        val batchPacket = PacketBatchSaveData(scopeId, batchMap)
+        context.respond(batchPacket)
+
+    }
+
+
+
+    fun prepareBatchSaveData(service: NexusService<*, *>): Map<String, String> {
+        val sessions = service.sessions
+        if (!service.isRunning || sessions.isEmpty())
+            return emptyMap()
+
+        val batchMap = HashMap<String, String>()
+
+        sessions.forEach {
+            if (!it.hasToBeSaved()) return@forEach
+
+            val dataStr = it.serializeData()
+            batchMap[it.id] = dataStr
+        }
+
+        return batchMap
     }
 
 
@@ -238,10 +193,12 @@ class NexusHubConnection(val hub: NexusHub) {
 
         @Suppress("UNCHECKED_CAST")
         when (packet) {
-            is PacketRequestHolderSync -> processSyncHolderData(context as IncomingContext<PacketRequestHolderSync>)
+            is PacketPing -> processPing(context as IncomingContext<PacketPing>)
             is PacketRequestSync -> processSyncData(context as IncomingContext<PacketRequestSync>)
+            is PacketStopSession -> processStopSession(context as IncomingContext<PacketStopSession>)
             else -> logger.warn("Unhandled packet: $packet")
         }
     }
-}
 
+
+}

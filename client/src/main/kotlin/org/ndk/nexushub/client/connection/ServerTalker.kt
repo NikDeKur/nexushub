@@ -1,11 +1,9 @@
 package org.ndk.nexushub.client.connection
 
-import dev.nikdekur.ndkore.scheduler.Scheduler
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import org.ndk.nexushub.client.NexusHub
 import org.ndk.nexushub.network.PacketManager
 import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
@@ -14,22 +12,26 @@ import org.ndk.nexushub.packet.Packet
 import java.util.*
 
 class ServerTalker(
-    val hub: NexusHub,
     val websocket: DefaultClientWebSocketSession,
-    scheduler: Scheduler
+    val networkDispatcher: CoroutineDispatcher
 ): Talker {
 
     override val addressHash = websocket.call.request.url.let {
         Objects.hash(it.host, it.port)
     }
 
-    val packetManager = PacketManager(this, scheduler)
+    override val addressStr = websocket.call.request.url.let {
+        "${it.host}:${it.port}"
+    }
+
+
+    val packetManager = PacketManager(this, networkDispatcher)
 
     override val isOpen: Boolean
-        get() = websocket.isActive
+        get() = websocket.closeReason.isActive
 
     override suspend fun send(transmission: PacketTransmission<*>) {
-        withContext(hub.blockingScope.coroutineContext) {
+        withContext(networkDispatcher) {
             val bytes = packetManager.processOutgoingTransmission(transmission)
             websocket.send(bytes)
         }
@@ -40,7 +42,7 @@ class ServerTalker(
     }
 
     override suspend fun close(code: Short, reason: String) {
-        withContext(hub.blockingScope.coroutineContext) {
+        withContext(networkDispatcher) {
             websocket.close(CloseReason(code, reason))
         }
     }

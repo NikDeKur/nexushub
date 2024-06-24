@@ -1,10 +1,10 @@
 package org.ndk.nexushub.client.service
 
 import org.ndk.nexushub.client.NexusHub
+import org.ndk.nexushub.client.serialization.DataSerializer
 import org.ndk.nexushub.client.sesion.Session
 import org.ndk.nexushub.data.Leaderboard
 import org.ndk.nexushub.data.LeaderboardEntry
-import org.ndk.nexushub.network.NexusData
 import org.slf4j.Logger
 import java.util.*
 
@@ -13,13 +13,18 @@ import java.util.*
  *
  *
  */
-interface NexusService<H : Any, S : Session<H, S>> {
+interface NexusService<H, S> {
 
     val hub: NexusHub
 
     val logger: Logger
 
     var isRunning: Boolean
+
+    val serializer: DataSerializer<H, S>
+
+    fun getId(holder: H): String
+
 
     /**
      * The NexusHub scope of the service.
@@ -31,7 +36,7 @@ interface NexusService<H : Any, S : Session<H, S>> {
     /**
      * The collection of existing sessions.
      */
-    val sessions: Collection<S>
+    val sessions: Collection<Session<H, S>>
 
     /**
      * Starts the service
@@ -45,27 +50,6 @@ interface NexusService<H : Any, S : Session<H, S>> {
      */
     suspend fun stop()
 
-    /**
-     * Gets the holder id from the holder object.
-     *
-     * Holder id is used to identify the holder in the database.
-     *
-     * It should be unique for each holder.
-     *
-     * @param holder The holder to get the id from.
-     * @return The holder id.
-     */
-    fun getId(holder: H): String
-
-    /**
-     * Gets the holder name from the holder object.
-     *
-     * Name is holder to identify the holder in the database.
-     *
-     * @param holder The holder to get the name from.
-     * @return The holder name.
-     */
-    fun getName(holder: H): String
 
     /**
      * Creates a new session object for the given holder.
@@ -75,7 +59,7 @@ interface NexusService<H : Any, S : Session<H, S>> {
      * @param holder The holder to create the session for.
      * @return The new session.
      */
-    fun createSession(holder: H): S
+    fun createSession(holder: H): Session<H, S>
 
     /**
      * Starts a session for the given holder.
@@ -89,7 +73,7 @@ interface NexusService<H : Any, S : Session<H, S>> {
      * @param holder The holder to start a session for.
      * @return The new session.
      */
-    suspend fun startSession(holder: H): S
+    suspend fun startSession(holder: H): Session<H, S>
 
     /**
      * Stops the session and starting data save for the given holder.
@@ -101,18 +85,23 @@ interface NexusService<H : Any, S : Session<H, S>> {
      * @param holder The holder to stop the session for.
      * @return The stopped session or null.
      */
-    suspend fun stopSession(holderId: String): S?
+    suspend fun stopSession(holderId: String): Session<H, S>?
+
+
+    fun removeSession(session: Session<H, S>)
+
+    suspend fun saveAllSessions()
 
     /**
      * Restarts the session for the given holder.
      *
      * If the holder does not have an active session, nothing will happen.
      *
-     * @param holder The holder to restart the session for.
+     * @param holderId The holder to restart the session for.
      * @return The new session.
 
      */
-    suspend fun restartSession(holder: H): S {
+    suspend fun restartSession(holder: H): Session<H, S> {
         stopSession(getId(holder))
         return startSession(holder)
     }
@@ -122,12 +111,12 @@ interface NexusService<H : Any, S : Session<H, S>> {
      *
      * If the holder does not have an active session, a new session will be created.
      *
-     * @param holder The holder to get the session for.
+     * @param holderId The holder to get the session for.
      * @return The session.
      * @see [getExistingSession]
      * @see [startSession]
      */
-    suspend fun getSession(holder: H): S {
+    suspend fun getSession(holder: H): Session<H, S> {
         return getExistingSession(getId(holder)) ?: startSession(holder)
     }
 
@@ -140,7 +129,7 @@ interface NexusService<H : Any, S : Session<H, S>> {
      * @param holderId The holder id to get the session for.
      * @return The session or null.
      */
-    fun getExistingSession(holderId: String): S?
+    fun getExistingSession(holderId: String): Session<H, S>?
 
     /**
      * Checks if the holder has an active session.
@@ -163,5 +152,4 @@ interface NexusService<H : Any, S : Session<H, S>> {
 
     suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?>
 
-    suspend fun getActualData(holderId: String): NexusData
 }

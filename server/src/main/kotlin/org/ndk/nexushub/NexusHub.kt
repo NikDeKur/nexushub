@@ -64,6 +64,7 @@ object NexusHub {
 
             AccountManager.init()
             ScopesManager.init()
+            NodesManager.init()
 
 //            AccountManager.newAccount(
 //                login = ,

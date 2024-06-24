@@ -6,6 +6,7 @@ import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import dev.nikdekur.ndkore.ext.*
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withPermit
@@ -18,7 +19,7 @@ import org.ndk.nexushub.data.LeaderboardEntry
 import org.ndk.nexushub.database.scope.ScopeCollection
 import org.ndk.nexushub.database.scope.ScopeDAO
 import org.ndk.nexushub.database.scope.ScopesCollection
-import org.ndk.nexushub.network.NexusData
+import org.ndk.nexushub.util.NexusData
 import java.util.concurrent.TimeUnit
 
 data class Scope(
@@ -140,14 +141,15 @@ data class Scope(
     }
 
 
-   inline fun ensureIndexAsync(field: String) {
-        if (!data.indexes.contains(field)) {
-            blockingScope.launch {
-                // Update scope in another coroutine to avoid blocking
-                data = data.copy(indexes = data.indexes + field)
-                collection.createIndex(field, false)
-                ScopesCollection.updateScope(data)
-            }
-        }
+   inline fun ensureIndexAsync(field: String): Job? {
+       if (!data.indexes.contains(field)) {
+           return blockingScope.launch {
+               // Update scope in another coroutine to avoid blocking
+               data = data.copy(indexes = data.indexes + field)
+               collection.createIndex(field, false)
+               ScopesCollection.updateScope(data)
+           }
+       }
+       return null
     }
 }

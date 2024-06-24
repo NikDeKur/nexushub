@@ -1,5 +1,6 @@
 package org.ndk.nexushub.packet
 
+import org.ndk.nexushub.packet.serialize.PacketDeserializer
 import org.ndk.nexushub.packet.serialize.PacketSerializer
 
 
@@ -11,15 +12,15 @@ abstract class Packet {
 
     abstract val packetId: UByte
 
-    private var _sequantial: UByte? = null
-    var sequantial: UByte
+    private var _sequantial: UShort? = null
+    var sequantial: UShort
         get() = _sequantial ?: error("Sequantial is not set")
         set(value) { _sequantial = value }
 
     val responseSequential
         get() = sequantial.inc()
 
-    abstract fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer)
+    abstract fun deserialize(deserializer: PacketDeserializer)
     abstract fun serialize(serializer: PacketSerializer)
 
     fun serialize(): ByteArray {

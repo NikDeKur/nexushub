@@ -1,5 +1,6 @@
-package org.ndk.nexushub.packet
+package org.ndk.nexushub.packet.`in`
 
+import org.ndk.nexushub.packet.Packet
 import org.ndk.nexushub.packet.serialize.PacketDeserializer
 import org.ndk.nexushub.packet.serialize.PacketSerializer
 import org.ndk.nexushub.packet.type.PacketTypes.SAVE_DATA
@@ -19,8 +20,8 @@ open class PacketSaveData : Packet {
     var data: String = "" // JSON
 
     constructor()
-    constructor(userId: String, scopeId: String, data: String) {
-        this.holderId = userId
+    constructor(scopeId: String, holderId: String, data: String) {
+        this.holderId = holderId
         this.scopeId = scopeId
         this.data = data
     }

@@ -1,11 +1,9 @@
 package org.ndk.nexushub.auth
 
 import dev.nikdekur.ndkore.ext.info
-import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.ndk.nexushub.NexusHub
 import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.auth.account.AccountManager
 import org.ndk.nexushub.auth.password.EncryptedPassword
@@ -15,31 +13,14 @@ import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.node.ClientNode
 import org.ndk.nexushub.node.NodesManager
 import org.ndk.nexushub.packet.Packet
-import org.ndk.nexushub.packet.PacketAuth
 import org.ndk.nexushub.packet.PacketOk
+import org.ndk.nexushub.packet.`in`.PacketAuth
 import org.ndk.nexushub.util.CloseCode
 import org.ndk.nexushub.util.close
 
 object AuthenticationManager {
 
-    val authenticationWaiter = CoroutineScheduler.fromSupervisor(Dispatchers.IO)
 
-    /**
-     * Timeout that is made from config timeout value and [PasswordEncryptor.AVERAGE_HASH_TIME_MS]
-     */
-    val authTimeout by lazy {
-        val cfgTimeout = NexusHub.config.network.authentication_timeout
-        PasswordEncryptor.AVERAGE_HASH_TIME_MS + cfgTimeout
-    }
-
-    fun waitForAuthentication(talker: Talker) {
-        authenticationWaiter.runTaskLater(authTimeout) {
-            if (NodesManager.getAuthenticatedNode(talker) != null) return@runTaskLater
-
-            // A Node is not found, so authentication hasn't been done
-            talker.close(CloseCode.AUTHENTICATION_TIMEOUT, "You haven't managed to authenticate in time")
-        }
-    }
 
     suspend fun executePacket(talker: Talker, context: IncomingContext<Packet>) {
         when (context.packet) {
@@ -95,7 +76,12 @@ object AuthenticationManager {
         }
 
         if (NodesManager.isNodeExists(talker)) {
-            talker.close(CloseCode.INVALID_DATA, "Node already exists")
+            talker.close(CloseCode.NODE_ALREADY_EXISTS, "Node at this address already exists")
+            return
+        }
+
+        if (NodesManager.isNodeExists(nodeStr)) {
+            talker.close(CloseCode.NODE_ALREADY_EXISTS, "Node with this id already exists")
             return
         }
 

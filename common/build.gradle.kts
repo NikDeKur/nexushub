@@ -4,7 +4,7 @@ val ndkore_version: String by project
 
 
 plugins {
-    kotlin("jvm")
+    kotlin("jvm") version "2.0.0"
     id("maven-publish")
 }
 
@@ -18,8 +18,14 @@ repositories {
 
 dependencies {
     api("dev.nikdekur:ndkore:$ndkore_version")
-    api("com.google.code.gson:gson:2.10.1")
+    api("com.google.code.gson:gson:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+
+
+
+    // Logging
+    implementation("org.slf4j:slf4j-api:2.0.13")
+    implementation("ch.qos.logback:logback-classic:1.5.6")
 
     testImplementation(kotlin("test"))
 }

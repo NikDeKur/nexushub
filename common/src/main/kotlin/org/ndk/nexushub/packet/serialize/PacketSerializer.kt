@@ -1,6 +1,5 @@
 package org.ndk.nexushub.packet.serialize
 
-import org.ndk.nexushub.packet.Packet
 import java.math.BigInteger
 import java.nio.ByteBuffer
 
@@ -10,7 +9,7 @@ class PacketSerializer(val packet: org.ndk.nexushub.packet.Packet) {
 
     init {
         writeByte(packet.packetId.toByte())
-        writeByte(packet.sequantial.toByte())
+        writeShort(packet.sequantial.toShort())
     }
 
     private fun ensureCapacity(bytes: Int) {

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.toList
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.ndk.nexushub.NexusHub.logger
-import org.ndk.nexushub.network.NexusData
+import org.ndk.nexushub.util.NexusData
 import org.ndk.nexushub.util.indexOptions
 
 class ScopeCollection(val collection: MongoCollection<Document>) {

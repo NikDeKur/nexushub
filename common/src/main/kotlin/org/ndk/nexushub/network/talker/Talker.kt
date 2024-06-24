@@ -8,6 +8,7 @@ import org.ndk.nexushub.packet.Packet
 interface Talker {
 
     val addressHash: Int
+    val addressStr: String
 
     val isOpen: Boolean
 

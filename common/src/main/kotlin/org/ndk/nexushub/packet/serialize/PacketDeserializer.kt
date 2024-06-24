@@ -13,7 +13,7 @@ class PacketDeserializer(data: ByteArray) {
     }
 
     fun readBoolean(): Boolean {
-        return readByte() == org.ndk.nexushub.packet.serialize.PacketDeserializer.Companion.BYTE1
+        return readByte() == BYTE1
     }
 
     inline fun readUByte() = readByte().toUByte()
@@ -45,16 +45,17 @@ class PacketDeserializer(data: ByteArray) {
         return String(bytes)
     }
 
-    fun readList(size: Int = readInt(), reader: org.ndk.nexushub.packet.serialize.PacketDeserializer.(Int) -> Unit) {
-        repeat(size) {
+    fun readCollection(size: Number = readInt(), reader: PacketDeserializer.(Int) -> Unit) {
+        repeat(size.toInt()) {
             this.reader(it)
         }
     }
 
+
     inline fun <K : Any, V> readMap(
         size: Int = readInt(),
-        keyReader: org.ndk.nexushub.packet.serialize.PacketDeserializer.(Int) -> K,
-        valueReader: org.ndk.nexushub.packet.serialize.PacketDeserializer.(Int) -> V,
+        keyReader: PacketDeserializer.(Int) -> K,
+        valueReader: PacketDeserializer.(Int) -> V,
         executor: (K, V) -> Unit
     ) {
         repeat(size) {
@@ -64,8 +65,8 @@ class PacketDeserializer(data: ByteArray) {
 
     inline fun <K : Any, V> readHashMap(
         size: Int = readInt(),
-        keyReader: org.ndk.nexushub.packet.serialize.PacketDeserializer.(Int) -> K,
-        valueReader: org.ndk.nexushub.packet.serialize.PacketDeserializer.(Int) -> V
+        keyReader: PacketDeserializer.(Int) -> K,
+        valueReader: PacketDeserializer.(Int) -> V
     ): HashMap<K, V> {
         val map = HashMap<K, V>()
         readMap(size, keyReader, valueReader, map::put)
@@ -83,7 +84,7 @@ class PacketDeserializer(data: ByteArray) {
      * Set buffer position to [BYTES_MARGIN] to skip packet id
      */
     fun focusData() {
-        buffer.position(org.ndk.nexushub.packet.serialize.PacketDeserializer.Companion.BYTES_MARGIN)
+        buffer.position(BYTES_MARGIN)
     }
 
     fun finish() {
@@ -91,7 +92,8 @@ class PacketDeserializer(data: ByteArray) {
     }
 
     companion object {
-        const val BYTES_MARGIN = 2
+        // Byte for a packet type and 2 bytes for sequential number
+        const val BYTES_MARGIN = 1 + 2
         val BYTE1 = 1.toByte()
     }
 }

@@ -5,6 +5,7 @@ import org.ndk.nexushub.network.talker.Talker
 enum class CloseCode {
     WRONG_CREDENTIALS,
     INVALID_DATA,
+    NODE_ALREADY_EXISTS,
     AUTHENTICATION_TIMEOUT,
     NODE_IS_NOT_AUTHENTICATED,
     TOO_MANY_CONNECTIONS,

@@ -1,15 +1,19 @@
-package org.ndk.nexushub.network
+package org.ndk.nexushub.util
 
-import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.Strictness
+import com.google.gson.ToNumberPolicy
 import com.google.gson.reflect.TypeToken
 import java.lang.reflect.Type
 
 
-typealias NexusData = Map<String, Any>
-
 object GsonSupport {
 
-    val gson = Gson()
+    val gson = GsonBuilder()
+        .setStrictness(Strictness.LENIENT)
+        .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+        .setNumberToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+        .create()
 
     fun dataToString(data: NexusData): String {
         return gson.toJson(data)

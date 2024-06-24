@@ -1,5 +1,6 @@
-package org.ndk.nexushub.packet
+package org.ndk.nexushub.packet.`in`
 
+import org.ndk.nexushub.packet.Packet
 import org.ndk.nexushub.packet.serialize.PacketDeserializer
 import org.ndk.nexushub.packet.serialize.PacketSerializer
 import org.ndk.nexushub.packet.type.PacketTypes

@@ -7,8 +7,8 @@ val logback_version: String by project
 val log4j2_version: String by project
 
 plugins {
-    kotlin("jvm") version "1.9.24"
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.24"
+    kotlin("jvm") version "2.0.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.0"
     id("maven-publish")
 }
 
@@ -34,6 +34,11 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:$ktor_version")
     implementation("io.ktor:ktor-client-websockets:$ktor_version")
     implementation("com.google.guava:guava:33.2.0-jre")
+    implementation("org.jetbrains.kotlinx:atomicfu:0.24.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.7.0")
+
+
 }
 
 val javaVersion = JavaVersion.VERSION_11

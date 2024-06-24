@@ -1,5 +1,6 @@
 package org.ndk.nexushub.packet
 
+import org.ndk.nexushub.packet.serialize.PacketDeserializer
 import org.ndk.nexushub.packet.serialize.PacketSerializer
 import org.ndk.nexushub.packet.type.PacketTypes.OK
 
@@ -14,7 +15,7 @@ class PacketOk : Packet {
         this.message = message
     }
 
-    override fun deserialize(deserializer: org.ndk.nexushub.packet.serialize.PacketDeserializer) {
+    override fun deserialize(deserializer: PacketDeserializer) {
         message = deserializer.readString()
     }
 

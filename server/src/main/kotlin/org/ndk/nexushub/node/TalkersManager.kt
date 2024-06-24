@@ -25,7 +25,7 @@ object TalkersManager {
         getExistingTalker(address)?.let { talker ->
             val node = NodesManager.getAuthenticatedNode(talker)
             if (node != null) {
-                logger.info("Node ${node.id} disconnected")
+                logger.info("[${talker.addressStr}] Node ${node.id} disconnected")
                 node.cleanUp()
             } else {
                 removeTalker(address)

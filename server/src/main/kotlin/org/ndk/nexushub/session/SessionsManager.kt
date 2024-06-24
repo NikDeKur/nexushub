@@ -12,7 +12,6 @@ import org.ndk.nexushub.scope.Scope
 
 object SessionsManager {
 
-
     //                                    scope   holder
     val sessions = ConcurrentMultiHashMap<String, String, Session>()
 

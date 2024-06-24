@@ -2,23 +2,23 @@ package org.ndk.nexushub.client.service
 
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
 import dev.nikdekur.ndkore.ext.*
+import kotlinx.coroutines.launch
 import org.ndk.nexushub.client.NexusHub
+import org.ndk.nexushub.client.serialization.DataSerializer
 import org.ndk.nexushub.client.sesion.Session
+import org.ndk.nexushub.client.sesion.SessionImpl
 import org.ndk.nexushub.data.Leaderboard
 import org.ndk.nexushub.data.LeaderboardEntry
-import org.ndk.nexushub.network.GsonSupport
-import org.ndk.nexushub.network.NexusData
-import org.ndk.nexushub.packet.PacketLeaderboard
-import org.ndk.nexushub.packet.PacketLoadData
-import org.ndk.nexushub.packet.PacketRequestLeaderboard
-import org.ndk.nexushub.packet.PacketUserData
+import org.ndk.nexushub.packet.PacketOk
+import org.ndk.nexushub.packet.`in`.PacketBatchSaveData
+import org.ndk.nexushub.packet.`in`.PacketEndSession
+import org.ndk.nexushub.packet.`in`.PacketRequestLeaderboard
+import org.ndk.nexushub.packet.out.PacketLeaderboard
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
+abstract class AbstractNexusService<H, S>(
     override val hub: NexusHub
 ) : NexusService<H, S> {
 
@@ -27,13 +27,13 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
     }
 
     open val sessionsLimit: Long = -1
-    open val saveParallelism: Int = 32
+    abstract override val serializer: DataSerializer<H, S>
 
-    val sessionsCache: Cache<String, S> by lazy {
+    val sessionsCache: Cache<String, Session<H, S>> by lazy {
         preBuildCache().build()
     }
 
-    open fun preBuildCache(): CacheBuilder<String, S> {
+    open fun preBuildCache(): CacheBuilder<String, Session<H, S>> {
         return CacheBuilder.newBuilder()
             .concurrencyLevel(4)
             .apply {
@@ -41,17 +41,25 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
                     maximumSize(sessionsLimit)
                 }
             }
-            .removalListener {
-                if (!isRunning) return@removalListener
-                hub.blockingScope.launch {
-                    val session = it.value!!
-                    if (!session.isActive) return@launch
-                    it.value!!.stop()
+            .removalListener<String, Session<H, S>> {
+                logger.info { "Removing session ${it.key} from cache." }
+                if (it.value!!.state.isInactive) return@removalListener
+                hub.scheduler.launch {
+                    stopSession(it.key!!)
                 }
             }
     }
 
-    override val sessions: Collection<S>
+    override fun createSession(holder: H): Session<H, S> {
+        return SessionImpl(this, holder)
+    }
+
+    override fun removeSession(session: Session<H, S>) {
+        session.state = Session.State.INACTIVE
+        sessionsCache.invalidate(session.id)
+    }
+
+    override val sessions: Collection<Session<H, S>>
         get() = sessionsCache.asMap().values
 
     override var isRunning: Boolean = false
@@ -62,35 +70,77 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
 
     override suspend fun stop() {
         logger.info { "Stopping service $scope" }
+
         isRunning = false
-        val sessions = sessionsCache.asMap().values
-        hub.blockingScope.parallel(saveParallelism, sessions) {
-            it.stop()
-        }.awaitAll()
+
+        sessionsCache.asMap().forEach {
+            it.value.stop()
+        }
 
         sessionsCache.invalidateAll()
     }
 
-    override fun getExistingSession(holderId: String): S? {
+    override fun getExistingSession(holderId: String): Session<H, S>? {
         return sessionsCache.getIfPresent(holderId)
     }
 
 
-    override suspend fun stopSession(holderId: String): S? {
-        val session = getExistingSession(holderId)
-        if (session != null) {
-            // Removal Listener will execute stopSessionInternal
-            sessionsCache.invalidate(holderId)
-        }
+    override suspend fun stopSession(holderId: String): Session<H, S>? {
+        // Function is suspending due to sessionsCache.invalidate call saveData
+        val session = getExistingSession(holderId) ?: return null
+
+        if (session.state.isInactive) return session
+
+        val dataStr = session.serializeData()
+
+        session.state = Session.State.STOPPING
+
+        val packet = PacketEndSession(scope, session.id, dataStr)
+
+        @Suppress("RemoveExplicitTypeArguments")
+        hub.connection.sendPacket<Unit>(packet) {
+            receive<PacketOk> {}
+
+            timeout(5000) {
+                hub.logger.warn("Timeout while stopping session.")
+            }
+
+            receive {
+                hub.logger.warn("Error while stopping session: $packet")
+            }
+        }.await()
+
+        removeSession(session)
+
         return session
     }
 
-    override suspend fun startSession(holder: H): S {
-        stopSession(getId(holder))
+    override suspend fun startSession(holder: H): Session<H, S> {
+        val id = getId(holder)
+        stopSession(id)
         val session = createSession(holder)
-        sessionsCache.put(getId(holder), session)
+        sessionsCache.put(id, session)
         session.loadData()
+
         return session
+    }
+
+
+    override suspend fun saveAllSessions() {
+        val data = hub.connection.prepareBatchSaveData(this)
+        if (data.isEmpty()) return
+        val packet = PacketBatchSaveData(scope, data)
+        hub.connection.sendPacket<Unit>(packet) {
+            receive<PacketOk> {}
+
+            timeout(5000) {
+                logger.warn("Timeout while saving all sessions.")
+            }
+
+            receive {
+                logger.warn("Error while saving all sessions: $packet")
+            }
+        }.await()
     }
 
 
@@ -98,7 +148,7 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
     override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard {
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, "")
 
-        return hub.connection.talker!!.sendPacket(packet) {
+        return hub.connection.sendPacket(packet) {
             throwOnTimeout(5000)
 
             receive<PacketLeaderboard> {
@@ -106,7 +156,7 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
             }
 
             receive {
-                error { "Unexpected behaviour while loading leaderboard in scope '$scope', for field '$field', with limit '$limit': $packet" }
+                error("Unexpected behaviour while loading leaderboard in scope '$scope', for field '$field', with limit '$limit': $packet")
             }
         }.await()
     }
@@ -115,7 +165,7 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
         check(holderId.isNotEmpty()) { "positionOf cannot be empty" }
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, holderId)
 
-        return hub.connection.talker!!.sendPacket(packet) {
+        return hub.connection.sendPacket(packet) {
             throwOnTimeout(5000)
 
             receive<PacketLeaderboard> {
@@ -128,26 +178,5 @@ abstract class AbstractNexusService<H : Any, S : Session<H, S>>(
         }
             .await()
             .let { it.leaderboard to it.requestPosition }
-    }
-
-
-    override suspend fun getActualData(holderId: String): NexusData {
-        val packet = PacketLoadData(scope, holderId)
-
-        val dataStr = hub.connection.talker!!.sendPacket(packet) {
-            throwOnTimeout(5000)
-
-            receive<PacketUserData> {
-                this.packet.data
-            }
-
-            receive {
-                error { "Unexpected behaviour while 'getActualData' for '$holderId': $packet" }
-            }
-        }.await()
-
-        val data = GsonSupport.dataFromString(dataStr)
-
-        return data
     }
 }

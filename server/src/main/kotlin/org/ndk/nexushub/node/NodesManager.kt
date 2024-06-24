@@ -1,9 +1,31 @@
 package org.ndk.nexushub.node
 
+import io.ktor.websocket.CloseReason
+import kotlinx.coroutines.launch
+import org.ndk.nexushub.NexusHub
+import org.ndk.nexushub.NexusHub.blockingScope
 import org.ndk.nexushub.network.talker.Talker
 import java.util.concurrent.ConcurrentHashMap
 
 object NodesManager {
+
+    fun init() {
+        val config = NexusHub.config.network.ping
+        val interval = config.interval * 1000L
+        blockingScope.runTaskTimer(interval) {
+            connectedNodes.values.forEach { node ->
+                blockingScope.launch {
+                    if (node.createdAt + config.warningThreshold > System.currentTimeMillis())
+                        return@launch
+
+                    val result = node.ping()
+                    if (!result) {
+                        node.close(CloseReason.Codes.GOING_AWAY.code, "Ping failed.")
+                    }
+                }
+            }
+        }
+    }
 
     val connectedNodes = ConcurrentHashMap<String, ClientNode>()
     val socketToNode = ConcurrentHashMap<Int, ClientNode>()
@@ -24,8 +46,8 @@ object NodesManager {
         return socketToNode[talker.addressHash]
     }
 
-    fun isNodeExists(node: String): Boolean {
-        return connectedNodes.containsKey(node)
+    fun isNodeExists(nodeId: String): Boolean {
+        return connectedNodes.containsKey(nodeId)
     }
 
     fun isNodeExists(talker: Talker): Boolean {

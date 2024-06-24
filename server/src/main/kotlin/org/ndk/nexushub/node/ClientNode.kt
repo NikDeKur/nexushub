@@ -7,17 +7,28 @@ import dev.nikdekur.ndkore.interfaces.Snowflake
 import kotlinx.coroutines.awaitAll
 import org.ndk.nexushub.NexusHub.logger
 import org.ndk.nexushub.auth.account.Account
-import org.ndk.nexushub.network.GsonSupport
-import org.ndk.nexushub.network.NexusData
 import org.ndk.nexushub.network.dsl.IncomingContext
 import org.ndk.nexushub.network.talker.Talker
 import org.ndk.nexushub.packet.*
 import org.ndk.nexushub.packet.PacketError.Code
 import org.ndk.nexushub.packet.PacketError.Level
+import org.ndk.nexushub.packet.`in`.PacketBatchSaveData
+import org.ndk.nexushub.packet.`in`.PacketLoadData
+import org.ndk.nexushub.packet.`in`.PacketPong
+import org.ndk.nexushub.packet.`in`.PacketRequestLeaderboard
+import org.ndk.nexushub.packet.`in`.PacketRequestTopPosition
+import org.ndk.nexushub.packet.`in`.PacketSaveData
+import org.ndk.nexushub.packet.out.PacketLeaderboard
+import org.ndk.nexushub.packet.out.PacketPing
+import org.ndk.nexushub.packet.out.PacketRequestSync
+import org.ndk.nexushub.packet.out.PacketStopSession
+import org.ndk.nexushub.packet.out.PacketTopPosition
+import org.ndk.nexushub.packet.out.PacketUserData
 import org.ndk.nexushub.scope.Scope
 import org.ndk.nexushub.scope.ScopesManager
 import org.ndk.nexushub.session.SessionsManager
-import org.ndk.nexushub.session.SessionsManager.stopSession
+import org.ndk.nexushub.util.GsonSupport
+import org.ndk.nexushub.util.NexusData
 
 class ClientNode(
     val talker: Talker,
@@ -25,7 +36,10 @@ class ClientNode(
     val account: Account,
 ) : Snowflake<String>, Talker by talker {
 
-    var isAlive = true
+    /**
+     * Time when this node was authenticated
+     */
+    val createdAt = System.currentTimeMillis()
 
     suspend fun processAuthenticatedPacket(context: IncomingContext<out Packet>) {
         val packet = context.packet
@@ -37,9 +51,7 @@ class ClientNode(
 
         @Suppress("UNCHECKED_CAST")
         when (packet) {
-            is PacketCreateSession -> processCreateSessionPacket(context as IncomingContext<PacketCreateSession>)
             is PacketLoadData -> processLoadDataPacket(context as IncomingContext<PacketLoadData>)
-            is PacketStopSession -> processStopSessionPacket(context as IncomingContext<PacketStopSession>)
             is PacketSaveData -> processSaveDataPacket(context as IncomingContext<PacketSaveData>)
             is PacketBatchSaveData -> processBatchSaveDataPacket(context as IncomingContext<PacketBatchSaveData>)
             is PacketRequestLeaderboard -> processRequestLeaderboardPacket(context as IncomingContext<PacketRequestLeaderboard>)
@@ -67,69 +79,6 @@ class ClientNode(
         return ScopesManager.getScope(scopeId)
     }
 
-    suspend fun processCreateSessionPacket(context: IncomingContext<PacketCreateSession>) {
-        val packet = context.packet
-        val scopeId  = packet.scopeId
-        val holderId = packet.holderId
-
-        val scope = context.accessScope(scopeId) ?: return
-        val sessions = SessionsManager.getExistingSession(scope.id, holderId)
-        if (sessions != null) {
-            context.respond(
-                PacketError(
-                    Level.ERROR,
-                    Code.SESSION_ALREADY_EXISTS,
-                    "Creating a few write sessions is not allowed"
-                )
-            )
-            return
-        }
-
-        val data = loadData(scope, holderId)
-        val dataStr = GsonSupport.dataToString(data)
-
-        SessionsManager.startSession(this, scope, holderId)
-
-        val dataPacket = PacketUserData(holderId, scopeId, dataStr)
-        context.respond(dataPacket)
-    }
-
-    suspend fun processStopSessionPacket(context: IncomingContext<PacketStopSession>) {
-        val packet = context.packet
-        val scopeId = packet.scopeId
-        val holderId = packet.holderId
-
-        val scope = context.accessScope(scopeId) ?: return
-
-        val session = SessionsManager.getExistingSession(scopeId, holderId)
-        if (session == null) {
-            context.respond(
-                PacketError(
-                    Level.ERROR,
-                    Code.SESSION_NOT_FOUND,
-                    "Session not found"
-                )
-            )
-            return
-        }
-
-        // Save data and stop session
-        try {
-            setData(scope, holderId, packet.data)
-        } catch (e: Exception) {
-            context.respond(
-                PacketError(
-                    Level.ERROR,
-                    Code.ERROR_IN_DATA,
-                    "Error while converting data from JSON"
-                )
-            )
-            return
-        }
-
-        context.respond(PacketOk("Session stopped"))
-    }
-
     suspend fun processLoadDataPacket(context: IncomingContext<out PacketLoadData>) {
         val packet = context.packet
         val scopeId = packet.scopeId
@@ -137,7 +86,36 @@ class ClientNode(
 
         val scope = context.accessScope(scopeId) ?: return
 
-        val data = loadData(scope, holderId)
+        // If any session already exists, send a stop session packet to a client
+        // This would notify the client that session is no longer active
+        // And force it to also return actual data, which would be given to a new session
+
+
+        logger.info("Sessions before: ${SessionsManager.nodeToSessions}")
+
+        val session = SessionsManager.getExistingSession(scopeId, holderId)
+        val createSession = session?.let {
+            logger.info("Session already exists for $holderId in $scopeId.")
+            val node = it.node
+            if (node != this) {
+                logger.info("Session is not for this node. Requesting sync and stopping session...")
+                node.requestHolderSyncAndStopSession(scope, holderId)
+                true
+            } else {
+                logger.info("Session is for this node. Don't worry about it.")
+                false
+            }
+        } != false
+
+        if (createSession) {
+            logger.info("Starting session for $holderId in $scopeId")
+            SessionsManager.startSession(this, scope, holderId)
+        }
+
+        logger.info("Current sessions: ${SessionsManager.nodeToSessions}")
+
+
+        val data = scope.loadData(holderId)
         val dataStr = GsonSupport.dataToString(data)
 
         val dataPacket = PacketUserData(holderId, scopeId, dataStr)
@@ -152,6 +130,18 @@ class ClientNode(
         val scope = context.accessScope(scopeId) ?: return
 
         val dataStr = packet.data
+
+        if (dataStr.isBlankOrEmpty()) {
+            context.respond(PacketError(Level.ERROR, Code.ERROR_IN_DATA, "Data is empty"))
+            return
+        }
+
+        // If any session exists, and it's not this one, return error to a client
+        val session = SessionsManager.getExistingSession(scopeId, holderId)
+        if (session != null && session.node != this) {
+            context.respond(PacketError(Level.ERROR, Code.SESSION_ALREADY_EXISTS, "Another session already exists for this holder. Only one session is allowed."))
+            return
+        }
 
         try {
             setData(scope, holderId, dataStr)
@@ -188,16 +178,21 @@ class ClientNode(
             val holderId = it.key
             val dataStr = it.value
             try {
-                val data = GsonSupport.dataFromString(dataStr)
-                data.apply {
-
+                val existingSession = SessionsManager.getExistingSession(scope.id, holderId)
+                if (existingSession != null && existingSession.node != this) {
+                    logger.warn(
+                        "Another session already exists for this holder. " +
+                        "Only one session is allowed. Skipping data for ${scope.id}:$holderId. Requested by $this"
+                    )
+                    return@mapNotNull null
                 }
+
+                val data = GsonSupport.dataFromString(dataStr)
                 if (data.isEmpty())
                     return@mapNotNull null
 
-
                 scope.queueDataSet(holderId, data)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Do nothing by now
                 null
             }
@@ -224,7 +219,7 @@ class ClientNode(
         val position = requestPosition?.let {
             try {
                 scope.getTopPosition(it, field)
-            } catch (e: NumberFormatException) {
+            } catch (_: NumberFormatException) {
                 context.respondError(Code.FIELD_IS_NOT_NUMBER)
                 return
             }
@@ -248,24 +243,12 @@ class ClientNode(
 
         val entry = try {
             scope.getTopPosition(holderId, field)
-        } catch (e: NumberFormatException) {
+        } catch (_: NumberFormatException) {
             context.respondError(Code.FIELD_IS_NOT_NUMBER)
             return
         }
 
         context.respond(PacketTopPosition(entry))
-    }
-
-    suspend fun loadData(scope: Scope, holderId: String): NexusData {
-        val session = SessionsManager.getExistingSession(scope.id, holderId)
-        if (session != null) {
-            val node = session.node
-            if (node != this) {
-                node.requestSync(session.scope, session.holderId)
-            }
-        }
-
-        return scope.loadData(holderId)
     }
 
 
@@ -288,16 +271,11 @@ class ClientNode(
         scope.setDataSync(holderId, data)
     }
 
-    /**
-     * Request data synchronisation (actual data) for given holder in the given scope.
-     *
-     * The next code called after this function will be executed after the data is synced.
-     */
-    suspend fun requestSync(scope: Scope, holderId: String) {
-        val syncPacket = PacketRequestHolderSync(scope.id, holderId)
 
-        @Suppress( "RemoveExplicitTypeArguments")
-        sendPacket<Unit>(syncPacket) {
+    suspend fun requestHolderSyncAndStopSession(scope: Scope, holderId: String) {
+        val stopPacket = PacketStopSession(scope.id, holderId)
+
+        sendPacket<Unit>(stopPacket) {
             receive<PacketSaveData> {
                 if (packet.scopeId != scope.id) {
                     logger.warn("Received data for different scope: ${packet.scopeId} instead of ${scope.id}")
@@ -312,7 +290,7 @@ class ClientNode(
                 val dataStr = packet.data
                 try {
                     setData(scope, holderId, dataStr)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     this.respond(
                         PacketError(
                             Level.ERROR,
@@ -324,10 +302,14 @@ class ClientNode(
                 }
             }
 
+            receive<PacketOk> {
+                // Nothing to save
+            }
+
             receive<PacketError> {
                 if (packet.code == Code.SESSION_NOT_FOUND) {
                     logger.warn("Session not found while syncing data with node $this for holder $holderId. Packet: $packet. Removing session...")
-                    stopSession(scope.id, holderId)
+                    SessionsManager.stopSession(scope.id, holderId)
                 } else {
                     logger.error("Error returned while syncing data: $packet")
                 }
@@ -339,6 +321,8 @@ class ClientNode(
                 logger.error("Exception occurred while syncing data: $exception")
             }
         }.await()
+
+        SessionsManager.stopSession(scope.id, holderId)
     }
 
 
@@ -378,6 +362,19 @@ class ClientNode(
         }.await()
     }
 
+
+    suspend fun ping(): Boolean {
+        val packet = PacketPing()
+        return sendPacket<Boolean>(packet) {
+            receive<PacketPong> { true }
+            receive { false }
+            timeout(5000) { false }
+            exception {
+                logger.warn("[$addressStr] Exception while pinging: $exception")
+                false
+            }
+        }.await()
+    }
 
 
     override fun toString(): String {
