@@ -12,6 +12,13 @@ interface Talker {
 
     val isOpen: Boolean
 
+    /**
+     * Represent if the talker is blocked from sending packets.
+     *
+     * The server could set this to prevent the talker from sending packets.
+     */
+    val isBlocked: Boolean
+
     suspend fun send(transmission: PacketTransmission<*>)
 
     suspend fun <R> sendPacket(
@@ -27,6 +34,13 @@ interface Talker {
 
     suspend fun receive(data: ByteArray): IncomingContext<Packet>?
 
-    suspend fun close(code: Short, reason: String)
+    /**
+     * Close the talker.
+     *
+     * @param code The close code.
+     * @param reason The close reason.
+     * @param block If true, will block talker from sending packets.
+     */
+    suspend fun close(code: Short, reason: String, block: Boolean)
 
 }

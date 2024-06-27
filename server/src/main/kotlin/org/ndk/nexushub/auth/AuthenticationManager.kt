@@ -27,7 +27,7 @@ object AuthenticationManager {
             is PacketAuth -> {
                 val node = NodesManager.getAuthenticatedNode(talker)
                 if (node != null) {
-                    node.close(CloseCode.UNEXPECTED_BEHAVIOUR, "You are already authenticated!")
+                    node.close(CloseCode.UNEXPECTED_BEHAVIOUR, "You are already authenticated!", true)
                     return
                 }
 
@@ -40,7 +40,7 @@ object AuthenticationManager {
                 // Authenticated node required
                 val node = NodesManager.getAuthenticatedNode(talker)
                 if (node == null) {
-                    talker.close(CloseCode.NODE_IS_NOT_AUTHENTICATED, "Authenticate before accessing this!")
+                    talker.close(CloseCode.NODE_IS_NOT_AUTHENTICATED, "Authenticate before accessing this!", true)
                     return
                 }
 
@@ -58,30 +58,30 @@ object AuthenticationManager {
             // Imitate hashing delay to hacker think login exists
             logger.info { "Account not found: ${packet.login}" }
             delay(PasswordEncryptor.averageHashTime())
-            talker.close(CloseCode.WRONG_CREDENTIALS, "")
+            talker.close(CloseCode.WRONG_CREDENTIALS, "", true)
             return
         }
 
         val isCorrect = verifyPassword(account.password, packet.password)
         if (!isCorrect) {
             logger.info { "Incorrect password for account: ${packet.login}" }
-            talker.close(CloseCode.WRONG_CREDENTIALS, "")
+            talker.close(CloseCode.WRONG_CREDENTIALS, "", true)
             return
         }
 
         val nodeStr = packet.node
         if (!isValidNodeName(nodeStr)) {
-            talker.close(CloseCode.INVALID_DATA, "Provided node name is not valid")
+            talker.close(CloseCode.INVALID_DATA, "Provided node name is not valid", true)
             return
         }
 
         if (NodesManager.isNodeExists(talker)) {
-            talker.close(CloseCode.NODE_ALREADY_EXISTS, "Node at this address already exists")
+            talker.close(CloseCode.NODE_ALREADY_EXISTS, "Node at this address already exists", true)
             return
         }
 
         if (NodesManager.isNodeExists(nodeStr)) {
-            talker.close(CloseCode.NODE_ALREADY_EXISTS, "Node with this id already exists")
+            talker.close(CloseCode.NODE_ALREADY_EXISTS, "Node with this id already exists", true)
             return
         }
 

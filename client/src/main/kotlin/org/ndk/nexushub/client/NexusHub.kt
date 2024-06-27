@@ -90,7 +90,7 @@ class NexusHub(val builder: Builder) {
         val connection: ConnectionConfiguration
             get() = checkNotNull(_connection) { "Connection is not initialized" }
 
-        var onReady: () -> Unit = {}
+        var onReady: suspend () -> Unit = {}
         var dispatcher: CoroutineDispatcher = Dispatchers.IO
 
         @NexusHubBuilderDSL
@@ -106,7 +106,7 @@ class NexusHub(val builder: Builder) {
          * @param block The block to be executed
          */
         @NexusHubBuilderDSL
-        fun onReady(block: () -> Unit) {
+        fun onReady(block: suspend () -> Unit) {
             onReady = block
         }
 

@@ -16,6 +16,6 @@ enum class CloseCode {
     val code = (4000 + ordinal).toShort()
 }
 
-suspend inline fun Talker.close(code: CloseCode, comment: String) {
-    close(code.code, comment)
+suspend inline fun Talker.close(code: CloseCode, reason: String, block: Boolean) {
+    close(code.code, reason, block)
 }

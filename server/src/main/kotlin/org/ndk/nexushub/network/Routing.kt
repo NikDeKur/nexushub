@@ -41,6 +41,13 @@ fun Application.configureRouting() {
 @Suppress("NOTHING_TO_INLINE")
 inline fun Route.routeProtocol() {
 
+    val config = NexusHub.config.network.rateLimit
+
+    val rateLimiter = PeriodRateLimiter(
+        limit = config.maxRequests,
+        period = config.timeWindow.seconds
+    )
+
     webSocket {
         val address = addressHash
         val addressStr = addressStr
@@ -48,23 +55,17 @@ inline fun Route.routeProtocol() {
         val talker = KtorTalker(this)
         TalkersManager.setTalker(address, talker)
 
-        val config = NexusHub.config.network.rateLimit
-
-        val rateLimiter = PeriodRateLimiter(
-            limit = config.maxRequests,
-            period = config.timeWindow.seconds
-        )
-
         try {
             incoming.consumeEach { frame ->
+                if (talker.isBlocked) return@consumeEach
+
                 if (!rateLimiter.acquire(talker)) {
                     logger.info("[$addressStr] Rate limit exceeded")
-                    talker.close(CloseReason.Codes.VIOLATED_POLICY, "Rate limit exceeded")
+                    talker.close(CloseReason.Codes.VIOLATED_POLICY, "Rate limit exceeded", true)
                     return@consumeEach
                 }
 
                 if (frame !is Frame.Binary) return@consumeEach
-                if (!talker.isOpen) return@consumeEach
 
                 // Run as new coroutine to avoid blocking and handle multiple connections
                 blockingScope.launch {
@@ -88,7 +89,7 @@ inline fun Route.routeProtocol() {
             logger.warn("[$addressStr] Exception occurred!", e)
         } finally {
             if (isActive) {
-                talker.close(CloseReason.Codes.INTERNAL_ERROR, "Exception occurred")
+                talker.close(CloseReason.Codes.INTERNAL_ERROR, "Exception occurred", true)
             }
         }
     }

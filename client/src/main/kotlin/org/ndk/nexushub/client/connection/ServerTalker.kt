@@ -16,6 +16,8 @@ class ServerTalker(
     val networkDispatcher: CoroutineDispatcher
 ): Talker {
 
+    override val isBlocked: Boolean = false
+
     override val addressHash = websocket.call.request.url.let {
         Objects.hash(it.host, it.port)
     }
@@ -41,7 +43,7 @@ class ServerTalker(
         return packetManager.processIncomingPacket(data)
     }
 
-    override suspend fun close(code: Short, reason: String) {
+    override suspend fun close(code: Short, reason: String, block: Boolean) {
         withContext(networkDispatcher) {
             websocket.close(CloseReason(code, reason))
         }
@@ -51,5 +53,5 @@ class ServerTalker(
 // Hardcoded for ktor websocket.
 // Remove if nexushub will be used with other websocket implementations
 suspend inline fun Talker.close(code: CloseReason.Codes, reason: String) {
-    close(code.code, reason)
+    close(code.code, reason, false)
 }

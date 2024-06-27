@@ -25,6 +25,7 @@ class KtorTalker(val websocket: DefaultWebSocketServerSession) : Talker {
 
     override val isOpen: Boolean
         get() = websocket.closeReason.isActive
+    override var isBlocked: Boolean = false
 
     override suspend fun send(transmission: PacketTransmission<*>) {
         withContext(NexusHub.blockingScope.coroutineContext) {
@@ -38,7 +39,8 @@ class KtorTalker(val websocket: DefaultWebSocketServerSession) : Talker {
         return packetManager.processIncomingPacket(data)
     }
 
-    override suspend fun close(code: Short, reason: String) {
+    override suspend fun close(code: Short, reason: String, block: Boolean) {
+        this.isBlocked = block
         withContext(NexusHub.blockingScope.coroutineContext) {
             websocket.close(CloseReason(code, reason))
             TalkersManager.cleanUp(addressHash)
@@ -63,6 +65,6 @@ class KtorTalker(val websocket: DefaultWebSocketServerSession) : Talker {
 }
 
 
-suspend inline fun Talker.close(code: CloseReason.Codes, reason: String) {
-    close(code.code, reason)
+suspend inline fun Talker.close(code: CloseReason.Codes, reason: String, block: Boolean) {
+    close(code.code, reason, block)
 }

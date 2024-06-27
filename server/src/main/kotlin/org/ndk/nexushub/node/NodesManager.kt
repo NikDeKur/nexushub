@@ -18,9 +18,9 @@ object NodesManager {
                     if (node.createdAt + config.warningThreshold > System.currentTimeMillis())
                         return@launch
 
-                    val result = node.ping()
+                    val result = node.  ping()
                     if (!result) {
-                        node.close(CloseReason.Codes.GOING_AWAY.code, "Ping failed.")
+                        node.close(CloseReason.Codes.GOING_AWAY.code, "Ping failed.", true)
                     }
                 }
             }
@@ -55,6 +55,6 @@ object NodesManager {
     }
 
     suspend fun closeAll(code: Short, reason: String) {
-        connectedNodes.values.forEach { it.talker.close(code, reason) }
+        connectedNodes.values.forEach { it.talker.close(code, reason, false) }
     }
 }

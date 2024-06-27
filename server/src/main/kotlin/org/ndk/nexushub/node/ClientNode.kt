@@ -382,11 +382,10 @@ class ClientNode(
     }
 
 
-    override suspend fun close(code: Short, reason: String) {
+    override suspend fun close(code: Short, reason: String, block: Boolean) {
         cleanUp()
 
-        if (talker.isOpen)
-            talker.close(code, reason)
+        talker.close(code, reason, block)
     }
 
     /**
