@@ -1,31 +1,45 @@
 @file:Suppress("PropertyName")
 
-val ndkore_version: String by project
+import org.gradle.kotlin.dsl.compileOnly
+import org.gradle.kotlin.dsl.libs
+import org.gradle.kotlin.dsl.test
+import org.gradle.kotlin.dsl.testImplementation
 
 
 plugins {
-    kotlin("jvm") version "2.0.0"
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.licenser)
+    alias(libs.plugins.kotlinSerialization)
     id("maven-publish")
 }
 
-group = "org.ndk.nexushub"
-version = "1.0.0"
+group = "dev.nikdekur.nexushub"
+version = "1.0.2"
+
+val authorId: String by project
+val authorName: String by project
+
+license {
+    header(project.file("HEADER"))
+    properties {
+        set("year", "2024-present")
+        set("name", authorName)
+    }
+    ignoreFailures = true
+}
 
 repositories {
     mavenCentral()
     mavenLocal()
 }
 
+
+
 dependencies {
-    api("dev.nikdekur:ndkore:$ndkore_version")
-    api("com.google.code.gson:gson:2.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-
-
-
-    // Logging
-    implementation("org.slf4j:slf4j-api:2.0.13")
-    implementation("ch.qos.logback:logback-classic:1.5.6")
+    compileOnly(libs.ndkore)
+    compileOnly(libs.kotlinx.coroutines)
+    compileOnly(libs.slf4j.api)
+    compileOnly(libs.kotlinx.serialization)
 
     testImplementation(kotlin("test"))
 }
@@ -36,27 +50,33 @@ tasks.test {
 
 
 val javaVersion = JavaVersion.VERSION_11
-val jlv = JavaLanguageVersion.of(javaVersion.majorVersion)
-kotlin {
-    jvmToolchain {
-        languageVersion.set(jlv)
-    }
-}
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
-    toolchain {
-        languageVersion.set(jlv)
-    }
-    withJavadocJar()
+    // withJavadocJar()
     withSourcesJar()
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(javaVersion.majorVersion))
+    }
 }
 
 
-// Publish to local maven repository
 publishing {
     publications {
-        create<MavenPublication>("mavenJava") {
+        create<MavenPublication>("maven") {
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+
+            pom {
+                developers {
+                    developer {
+                        id.set(authorId)
+                        name.set(authorName)
+                    }
+                }
+            }
+
             from(components["java"])
         }
     }

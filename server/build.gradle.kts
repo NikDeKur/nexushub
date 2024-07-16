@@ -1,19 +1,19 @@
 @file:Suppress("PropertyName")
 
-
-val ktor_version: String by project
-val logback_version: String by project
-val log4j2_version: String by project
-
 plugins {
-    kotlin("jvm") version "2.0.0"
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.licenser)
+    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.ktor)
     application
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.0"
     id("maven-publish")
 }
 
-group = "org.ndk.nexushub"
-version = "1.0.0"
+group = "dev.nikdekur.nexushub"
+version = "1.0.2"
+
+val authorId: String by project
+val authorName: String by project
 
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
@@ -27,35 +27,36 @@ repositories {
     mavenLocal()
 }
 
+license {
+    header(project.file("HEADER"))
+    properties {
+        set("year", "2024-present")
+        set("name", authorName)
+    }
+    ignoreFailures = true
+}
+
 dependencies {
     implementation(project(":common"))
-
-    implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
-    implementation("io.ktor:ktor-server-websockets-jvm:$ktor_version")
-    implementation("io.ktor:ktor-server-netty:$ktor_version")
-//    implementation("org.apache.logging.log4j:log4j-api:$log4j2_version")
-//    implementation("org.apache.logging.log4j:log4j-core:$log4j2_version")
-
-    implementation("ch.qos.logback:logback-classic:$logback_version")
-
-    implementation("io.ktor:ktor-server-config-yaml:3.0.0-beta-1")
-
-    // https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk18on
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-    implementation("org.mongodb:mongodb-driver-kotlin-coroutine:5.0.0-beta0")
-    implementation("com.google.guava:guava:33.2.0-jre")
-
-    testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.0.0")
+    implementation(libs.common)
+    implementation(libs.logback)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.config.yaml)
+    implementation(libs.ktor.html.builder)
+    implementation(libs.gson)
+    implementation(libs.ndkore)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.yamlkt)
+    implementation(libs.mongodb)
+    implementation(libs.bouncycastle)
+    implementation(libs.guava)
+    testImplementation(libs.ktor.server.tests)
+    testImplementation(libs.kotlin.test.junit)
 }
 
 val javaVersion = JavaVersion.VERSION_11
-val jlv = JavaLanguageVersion.of(javaVersion.majorVersion)
-kotlin {
-    jvmToolchain {
-        languageVersion.set(jlv)
-    }
-}
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
@@ -73,8 +74,8 @@ publishing {
             pom {
                 developers {
                     developer {
-                        id.set("nikdekur")
-                        name.set("Nik De Kur")
+                        id.set(authorId)
+                        name.set(authorName)
                     }
                 }
             }

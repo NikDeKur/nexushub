@@ -1,19 +1,27 @@
 @file:Suppress("PropertyName")
 
 
-val ktor_version: String by project
-val kotlin_version: String by project
-val logback_version: String by project
-val log4j2_version: String by project
-
 plugins {
-    kotlin("jvm") version "2.0.0"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.0"
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.licenser)
+    alias(libs.plugins.kotlinSerialization)
     id("maven-publish")
 }
 
-group = "org.ndk.nexushub"
-version = "1.0.0"
+group = "dev.nikdekur.nexushub"
+version = "1.0.2"
+
+val authorId: String by project
+val authorName: String by project
+
+license {
+    header(project.file("HEADER"))
+    properties {
+        set("year", "2024-present")
+        set("name", authorName)
+    }
+    ignoreFailures = true
+}
 
 repositories {
     mavenCentral()
@@ -24,19 +32,14 @@ repositories {
 dependencies {
     implementation(project(":common"))
 
-//    implementation("org.apache.logging.log4j:log4j-api:$log4j2_version")
-//    implementation("org.apache.logging.log4j:log4j-core:$log4j2_version")
-
-    implementation("ch.qos.logback:logback-classic:$logback_version")
-
-
-    implementation("io.ktor:ktor-client-core:$ktor_version")
-    implementation("io.ktor:ktor-client-okhttp:$ktor_version")
-    implementation("io.ktor:ktor-client-websockets:$ktor_version")
-    implementation("com.google.guava:guava:33.2.0-jre")
-    implementation("org.jetbrains.kotlinx:atomicfu:0.24.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.7.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.7.0")
+    implementation(libs.ndkore)
+    implementation(libs.logback)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.websockets)
+    implementation(libs.atomicfu)
+    implementation(libs.guava)
 
 
 }
@@ -62,8 +65,8 @@ publishing {
             pom {
                 developers {
                     developer {
-                        id.set("nikdekur")
-                        name.set("Nik De Kur")
+                        id.set(authorId)
+                        name.set(authorName)
                     }
                 }
             }

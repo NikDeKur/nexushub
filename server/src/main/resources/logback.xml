@@ -15,4 +15,5 @@
     <logger name="org.mongodb.driver.protocol.command" level="WARN"/>
     <logger name="org.mongodb.driver.operation" level="WARN"/>
     <logger name="NexusHub" level="DEBUG"/>
+    <logger name="NexusHubRouting" level="DEBUG"/>
 </configuration>
