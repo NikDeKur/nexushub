@@ -1,16 +1,28 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2024-present "Nik De Kur"
+ */
+
 package dev.nikdekur.nexushub.session
 
 import dev.nikdekur.ndkore.ext.parallel
 import dev.nikdekur.ndkore.map.multi.ConcurrentMultiHashMap
 import dev.nikdekur.ndkore.map.set.ConcurrentSetsHashMap
+import dev.nikdekur.nexushub.config.NexusHubServerConfig
+import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.nexushub.node.ClientNode
+import dev.nikdekur.nexushub.scope.Scope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
-import dev.nikdekur.nexushub.NexusHub.config
-import dev.nikdekur.nexushub.node.ClientNode
-import dev.nikdekur.nexushub.scope.Scope
+import org.koin.core.component.inject
 
-object SessionsManager {
+class SessionsServiceImpl : SessionsService, NexusHubComponent {
+
+    val config by inject<NexusHubServerConfig>()
 
     //                                    scope   holder
     val sessions = ConcurrentMultiHashMap<String, String, Session>()
@@ -20,18 +32,18 @@ object SessionsManager {
 
     val scopeToNodes = ConcurrentSetsHashMap<String, ClientNode>()
 
-    fun getExistingSession(scopeId: String, holderId: String): Session? {
+    override fun getExistingSession(scopeId: String, holderId: String): Session? {
         return sessions[scopeId, holderId]
     }
 
-    fun startSession(node: ClientNode, scope: Scope, holderId: String) {
+    override fun startSession(node: ClientNode, scope: Scope, holderId: String) {
         val session = Session(node, scope, holderId)
         sessions.put(scope.id, holderId, session)
         nodeToSessions.add(node.id, session)
         scopeToNodes.add(scope.id, node)
     }
 
-    fun stopSession(scopeId: String, holderId: String) {
+    override fun stopSession(scopeId: String, holderId: String) {
         val session = sessions.remove(scopeId, holderId)
         if (session != null) {
             val node = session.node
@@ -41,7 +53,7 @@ object SessionsManager {
     }
 
 
-    fun stopAllSessions(node: ClientNode) {
+    override fun stopAllSessions(node: ClientNode) {
         val nodeSessions = nodeToSessions.remove(node.id)
         nodeSessions?.forEach {
             sessions.remove(it.scope.id, it.holderId)
@@ -49,13 +61,13 @@ object SessionsManager {
         }
     }
 
-    fun hasAnySessions(node: ClientNode): Boolean {
+    override fun hasAnySessions(node: ClientNode): Boolean {
         return nodeToSessions.contains(node.id)
     }
 
     val syncingScope = CoroutineScope(Dispatchers.IO)
 
-    suspend fun requestSync(scope: Scope) {
+    override suspend fun requestSync(scope: Scope) {
         val nodes = scopeToNodes[scope.id]
 
         syncingScope.parallel(config.data.sync_parallelism, nodes) {

@@ -5,7 +5,7 @@ kotlinx-serialization = "1.7.1"
 slf4j = "2.0.13"
 logback = "1.5.6"
 licenser = "0.6.1"
-ndkore = "1.1.0"
+ndkore = "1.1.1"
 ktor = "3.0.0-beta-1"
 ktor-html = "1.6.8"
 gson = "2.11.0"
@@ -15,6 +15,8 @@ bouncycastle = "1.78.1"
 common = "1.0.2"
 guava = "33.2.1-jre"
 atomicfu = "0.24.0"
+shadowjar = "8.1.1"
+koin = "3.5.6"
 
 [libraries]
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
@@ -40,9 +42,11 @@ bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "boun
 common = { module = "dev.nikdekur.nexushub:common", version.ref = "common" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
+koin = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 licenser = { id = "org.cadixdev.licenser", version.ref = "licenser" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+shadowJar = { id = "com.github.johnrengelman.shadow", version.ref = "shadowjar" }

@@ -1,7 +1,15 @@
-package dev.nikdekur.nexushub.node
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2024-present "Nik De Kur"
+ */
+
+package dev.nikdekur.nexushub.talker
 
 import dev.nikdekur.ndkore.ext.debug
-import dev.nikdekur.nexushub.NexusHub.logger
+import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.network.PacketManager
 import dev.nikdekur.nexushub.network.addressHash
 import dev.nikdekur.nexushub.network.addressStr
@@ -13,12 +21,19 @@ import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import org.koin.core.component.inject
+import org.slf4j.LoggerFactory
 
-class KtorClientTalker(val websocket: DefaultWebSocketServerSession) : ClientTalker {
+class KtorClientTalker(
+    val websocket: DefaultWebSocketServerSession
+) : ClientTalker, NexusHubComponent {
+
+    val logger = LoggerFactory.getLogger(javaClass)
+
+    val talkersService: TalkersService by inject()
 
     override val addressHash = websocket.call.addressHash
     override val addressStr = websocket.call.addressStr
-
 
     val packetManager = PacketManager(this, Dispatchers.IO)
 
@@ -45,7 +60,7 @@ class KtorClientTalker(val websocket: DefaultWebSocketServerSession) : ClientTal
 
     override suspend fun close(code: CloseCode, comment: String) {
         websocket.close(CloseReason(code.code, comment))
-        TalkersManager.cleanUp(addressHash)
+        talkersService.cleanUp(addressHash)
     }
 
 

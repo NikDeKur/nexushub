@@ -1,3 +1,11 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2024-present "Nik De Kur"
+ */
+
 @file:Suppress("NOTHING_TO_INLINE")
 @file:OptIn(ExperimentalContracts::class)
 
@@ -86,7 +94,7 @@ class NexusHub(
 
     internal suspend fun stopServices() {
         services.values.forEachSafe({
-            logger.warn("Error occurred while stopping service with scope $scope", it)
+            logger.warn("Error occurred while stopping service with scope $scope", this)
         }) { it.stop() }
     }
 

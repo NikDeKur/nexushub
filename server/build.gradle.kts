@@ -1,10 +1,14 @@
 @file:Suppress("PropertyName")
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.licenser)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ktor)
+    alias(libs.plugins.shadowJar)
     application
     id("maven-publish")
 }
@@ -27,15 +31,6 @@ repositories {
     mavenLocal()
 }
 
-license {
-    header(project.file("HEADER"))
-    properties {
-        set("year", "2024-present")
-        set("name", authorName)
-    }
-    ignoreFailures = true
-}
-
 dependencies {
     implementation(project(":common"))
     implementation(libs.common)
@@ -52,6 +47,7 @@ dependencies {
     implementation(libs.mongodb)
     implementation(libs.bouncycastle)
     implementation(libs.guava)
+    implementation(libs.koin)
     testImplementation(libs.ktor.server.tests)
     testImplementation(libs.kotlin.test.junit)
 }
@@ -63,6 +59,18 @@ java {
     withJavadocJar()
     withSourcesJar()
 }
+
+
+license {
+    header(project.file("../HEADER"))
+    properties {
+        set("year", "2024-present")
+        set("name", authorName)
+    }
+    ignoreFailures = true
+}
+
+
 
 publishing {
     publications {
@@ -83,4 +91,8 @@ publishing {
             from(components["java"])
         }
     }
+}
+
+tasks.withType<ShadowJar> {
+    minimize()
 }

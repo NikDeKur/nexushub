@@ -19,21 +19,10 @@ version = "1.0.2"
 val authorId: String by project
 val authorName: String by project
 
-license {
-    header(project.file("HEADER"))
-    properties {
-        set("year", "2024-present")
-        set("name", authorName)
-    }
-    ignoreFailures = true
-}
-
 repositories {
     mavenCentral()
     mavenLocal()
 }
-
-
 
 dependencies {
     compileOnly(libs.ndkore)
@@ -59,6 +48,17 @@ java {
         languageVersion.set(JavaLanguageVersion.of(javaVersion.majorVersion))
     }
 }
+
+license {
+    header(project.file("../HEADER"))
+    properties {
+        set("year", "2024-present")
+        set("name", authorName)
+    }
+    ignoreFailures = true
+}
+
+
 
 
 publishing {

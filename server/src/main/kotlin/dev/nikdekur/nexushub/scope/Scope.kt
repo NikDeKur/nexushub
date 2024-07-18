@@ -1,3 +1,11 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2024-present "Nik De Kur"
+ */
+
 @file:Suppress("NOTHING_TO_INLINE")
 
 package dev.nikdekur.nexushub.scope
@@ -5,29 +13,29 @@ package dev.nikdekur.nexushub.scope
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import dev.nikdekur.ndkore.ext.*
-import dev.nikdekur.nexushub.NexusHub.blockingScope
-import dev.nikdekur.nexushub.NexusHub.config
-import dev.nikdekur.nexushub.NexusHub.logger
-import dev.nikdekur.nexushub.config.NexusDataConfig
+import dev.nikdekur.ndkore.`interface`.Snowflake
+import dev.nikdekur.nexushub.config.NexusHubServerConfig
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.data.buildLeaderboard
-import dev.nikdekur.nexushub.database.scope.ScopeCollection
-import dev.nikdekur.nexushub.database.scope.ScopeDAO
-import dev.nikdekur.nexushub.database.scope.ScopesCollection
+import dev.nikdekur.nexushub.database.scope.ScopeTable
+import dev.nikdekur.nexushub.database.scope.ScopesTable
+import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.util.NexusData
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withPermit
+import org.koin.core.component.inject
+import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 data class Scope(
-    val id: String,
-    var data: ScopeDAO,
-    val collection: ScopeCollection,
-) {
+    override val id: String,
+    val collection: ScopeTable
+) : Snowflake<String>, NexusHubComponent {
+
+    val scopesTable by inject<ScopesTable>()
+
+    val logger = LoggerFactory.getLogger(javaClass)
+
+    val config: NexusHubServerConfig by inject()
 
     val cacheExpiration = config.data.cache_expiration
     val cacheSize = config.data.cache_max_size
@@ -44,38 +52,18 @@ data class Scope(
         // Don't use cache[holderId] because CacheBuilder doesn't support async loading
         val cached = cache.getIfPresent(holderId)
         if (cached != null) return cached
-        val data = collection.loadOrNull(holderId) ?: emptyMap()
+        val data = collection.findOrNull(holderId) ?: emptyMap()
         cache.put(holderId, data)
         return data
     }
 
 
-    suspend fun setDataSync(holderId: String, data: NexusData) {
-        queueDataSet(holderId, data).await()
+    suspend fun setData(holderId: String, data: NexusData) {
+        val clean = data.removeEmpty(maps = true, collections = true)
+        cache.put(holderId, clean)
+        collection.save(holderId, clean)
     }
 
-
-    /**
-     * Save data safe and parallel
-     *
-     * Parallelism can be limited by [NexusDataConfig.save_parallelism]
-     *
-     * @param holderId holder id
-     * @param data data to save
-     */
-    fun queueDataSet(holderId: String, data: NexusData): Deferred<Unit> {
-        return ScopesManager.saveScope.async {
-            ScopesManager.saveLimiter.withPermit {
-                try {
-                    val clean = data.removeEmpty(maps = true, collections = true)
-                    cache.put(holderId, clean)
-                    collection.save(holderId, clean)
-                } catch (e: Exception) {
-                    logger.error("Error while saving data", e)
-                }
-            }
-        }
-    }
 
 
 
@@ -87,12 +75,10 @@ data class Scope(
 
             val pathList = path.split('.')
 
-            ensureIndexAsync(path)
-
             buildLeaderboard {
                 this.startFrom = startFrom
 
-                rawLeaderboard.forEachSafe {
+                rawLeaderboard.forEachSafe(Exception::printStackTrace) {
                     val holderId = it["holderId"] as String
                     @Suppress("kotlin:S6611") // We know that the field is present
 
@@ -127,7 +113,8 @@ data class Scope(
 
             val data = loadData(holderId)
             logger.info("Data is $data")
-            val fieldValue = data.getNested(field, ".") ?: return null
+            val keys = field.split(".")
+            val fieldValue = data.getNested(keys) ?: return null
             logger.info("Field Value: $fieldValue")
             if (fieldValue !is Number)
                 throw NumberFormatException("Field $field is not a number")
@@ -135,23 +122,8 @@ data class Scope(
 
             val position = collection.getTopPosition(holderId, field, value)
 
-            ensureIndexAsync(field)
-
             LeaderboardEntry(position, holderId, value)
         }
         return position
-    }
-
-
-   inline fun ensureIndexAsync(field: String): Job? {
-       if (!data.indexes.contains(field)) {
-           return blockingScope.launch {
-               // Update scope in another coroutine to avoid blocking
-               data = data.copy(indexes = data.indexes + field)
-               collection.createIndex(field, false)
-               ScopesCollection.updateScope(data)
-           }
-       }
-       return null
     }
 }

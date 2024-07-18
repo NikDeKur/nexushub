@@ -1,50 +1,19 @@
-@file:Suppress("NOTHING_TO_INLINE")
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2024-present "Nik De Kur"
+ */
 
 package dev.nikdekur.nexushub.database.account
 
-import com.mongodb.client.model.Filters
 import com.mongodb.client.result.DeleteResult
-import com.mongodb.kotlin.client.coroutine.MongoCollection
-import kotlinx.coroutines.flow.singleOrNull
-import kotlinx.coroutines.flow.toList
-import org.bson.conversions.Bson
-import dev.nikdekur.nexushub.database.Database
 
-object AccountsTable {
-
-    const val TABLE_NAME = "accounts"
-    lateinit var table: MongoCollection<AccountDAO>
-
-    fun init() {
-        val db = Database.database
-        table = db.getCollection(TABLE_NAME)
-    }
-
-    suspend fun fetchAllAccounts(): List<AccountDAO> {
-        return table.find().toList()
-    }
-
-    suspend fun newAccount(dao: AccountDAO) {
-        table.insertOne(dao)
-    }
-
-    suspend fun updateAccount(dao: AccountDAO) {
-        val filter = "login" eq dao.login
-        table.replaceOne(filter, dao)
-    }
-
-    suspend fun fetchAccount(login: String): AccountDAO? {
-        val filter = "login" eq login
-        return table
-            .find(filter)
-            .singleOrNull()
-    }
-
-    suspend fun deleteAccount(login: String): DeleteResult {
-        val filter = "login" eq login
-        return table.deleteOne(filter)
-    }
+interface AccountsTable  {
+    suspend fun fetchAllAccounts(): List<AccountDAO>
+    suspend fun findAccount(login: String): AccountDAO?
+    suspend fun newAccount(dao: AccountDAO)
+    suspend fun updateAccount(dao: AccountDAO)
+    suspend fun deleteAccount(login: String): DeleteResult
 }
-
-
-inline infix fun String.eq(value: Any): Bson = Filters.eq(this, value)
