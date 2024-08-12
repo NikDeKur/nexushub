@@ -9,11 +9,11 @@
 package dev.nikdekur.nexushub.scope
 
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
-import dev.nikdekur.nexushub.database.mongo.MongoDatabaseImpl
+import dev.nikdekur.nexushub.database.mongo.MongoDatabase
 import dev.nikdekur.nexushub.database.mongo.ensureCollectionExists
 import dev.nikdekur.nexushub.database.mongo.indexOptions
 import dev.nikdekur.nexushub.database.mongo.scope.MongoScopeTable
-import dev.nikdekur.nexushub.database.mongo.scope.ScopeDAO
+import dev.nikdekur.nexushub.database.scope.ScopeDAO
 import dev.nikdekur.nexushub.database.scope.ScopesTable
 import dev.nikdekur.nexushub.koin.NexusHubComponent
 import kotlinx.coroutines.flow.toList
@@ -23,7 +23,7 @@ import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 
 class MongoScopesService(
-    val database: MongoDatabaseImpl,
+    val database: MongoDatabase,
     val scopesTable: ScopesTable
 ) : ScopesService, NexusHubComponent {
 

@@ -21,6 +21,7 @@ import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.*
 import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.client.*
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
 import io.ktor.websocket.*
@@ -96,7 +97,7 @@ class DefaultGateway(
     override suspend fun start(configuration: GatewayConfiguration) {
         resetState(configuration)
 
-        val client = HttpClient {
+        val client = HttpClient(OkHttp) {
             install(WebSockets)
         }
 

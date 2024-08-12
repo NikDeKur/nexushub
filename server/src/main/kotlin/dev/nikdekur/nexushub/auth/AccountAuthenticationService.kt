@@ -10,7 +10,6 @@ package dev.nikdekur.nexushub.auth
 
 import dev.nikdekur.ndkore.ext.info
 import dev.nikdekur.nexushub.auth.account.AccountsService
-import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.auth.password.PasswordEncryptor
 import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
@@ -20,13 +19,11 @@ import dev.nikdekur.nexushub.packet.Packet
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
 import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
-class AuthenticationServiceImpl : AuthenticationService, NexusHubComponent {
+class AccountAuthenticationService : AuthenticationService, NexusHubComponent {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
@@ -56,7 +53,7 @@ class AuthenticationServiceImpl : AuthenticationService, NexusHubComponent {
             return
         }
 
-        val isCorrect = verifyPassword(account.password, packet.password)
+        val isCorrect = accountsService.matchPassword(account.password, packet.password)
         if (!isCorrect) {
             logger.info { "Incorrect password for account: ${packet.login}" }
             talker.closeWithBlock(CloseCode.WRONG_CREDENTIALS)
@@ -70,7 +67,7 @@ class AuthenticationServiceImpl : AuthenticationService, NexusHubComponent {
         }
 
         if (nodesService.isNodeExists(talker)) {
-            talker.closeWithBlock(CloseCode.NODE_ALREADY_EXISTS, "Node at this address already exists")
+            talker.closeWithBlock(CloseCode.NODE_ALREADY_EXISTS, "Node at exact same address already exists")
             return
         }
 
@@ -90,11 +87,5 @@ class AuthenticationServiceImpl : AuthenticationService, NexusHubComponent {
         return validNodePattern.matches(node) && node.length <= 32 && node.length >= 4
     }
 
-    val encryptingDispatcher = Dispatchers.IO
 
-    private suspend fun verifyPassword(real: EncryptedPassword, submitted: String): Boolean {
-        return withContext(encryptingDispatcher) {
-            real.isEqual(submitted)
-        }
-    }
 }

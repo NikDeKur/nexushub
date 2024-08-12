@@ -11,11 +11,12 @@ package dev.nikdekur.nexushub.service
 import dev.nikdekur.ndkore.scheduler.Scheduler
 import dev.nikdekur.ndkore.scheduler.SchedulerTask
 import dev.nikdekur.nexushub.NexusHub
+import dev.nikdekur.nexushub.scope.ScopeData
 import dev.nikdekur.nexushub.sesion.Session
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
-abstract class TimedNexusService<H, S>(
+abstract class TimedNexusService<H, S : ScopeData<S>>(
     val scheduler: Scheduler,
     hub: NexusHub,
     val sessionLiveTime: Duration

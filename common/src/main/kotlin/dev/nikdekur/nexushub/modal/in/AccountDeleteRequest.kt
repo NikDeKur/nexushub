@@ -6,9 +6,11 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-import org.ndk.nexushub.packet.PacketRequestLeaderboard
+package dev.nikdekur.nexushub.modal.`in`
 
-fun main() {
-    val packet = PacketRequestLeaderboard("scopeId", "filter", 0, 0, "requestPosition")
-    println(packet)
-}
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class AccountDeleteRequest(
+    val login: String
+)

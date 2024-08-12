@@ -9,7 +9,6 @@
 package dev.nikdekur.nexushub.database.scope
 
 import dev.nikdekur.ndkore.`interface`.Snowflake
-import dev.nikdekur.nexushub.database.mongo.scope.ScopeDAO
 import dev.nikdekur.nexushub.util.NexusData
 
 interface ScopeTable : Snowflake<String> {

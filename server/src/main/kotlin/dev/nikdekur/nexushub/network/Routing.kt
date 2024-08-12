@@ -11,8 +11,19 @@ package dev.nikdekur.nexushub.network
 import dev.nikdekur.ndkore.ext.debug
 import dev.nikdekur.ndkore.ext.warn
 import dev.nikdekur.nexushub.auth.AuthenticationService
+import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
+import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.nexushub.modal.Account
+import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
+import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
+import dev.nikdekur.nexushub.modal.`in`.AccountScopesListRequest
+import dev.nikdekur.nexushub.modal.`in`.AccountScopesUpdateRequest
+import dev.nikdekur.nexushub.modal.`in`.AuthRequest
+import dev.nikdekur.nexushub.modal.out.AccountScopesListResponse
+import dev.nikdekur.nexushub.modal.out.AccountsListResponse
+import dev.nikdekur.nexushub.network.auth.authenticate
 import dev.nikdekur.nexushub.network.ratelimit.PeriodRateLimiter
 import dev.nikdekur.nexushub.network.ratelimit.RateLimiter
 import dev.nikdekur.nexushub.node.NodesService
@@ -23,8 +34,15 @@ import dev.nikdekur.nexushub.packet.out.PacketReady
 import dev.nikdekur.nexushub.talker.KtorClientTalker
 import dev.nikdekur.nexushub.talker.TalkersService
 import dev.nikdekur.nexushub.util.CloseCode
+import io.ktor.html.HtmlContent
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
 import io.ktor.server.plugins.*
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.utils.io.*
@@ -35,12 +53,18 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
+import kotlinx.html.HTML
+import kotlinx.html.body
+import kotlinx.html.p
 import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
 import kotlin.time.Duration.Companion.seconds
 
+suspend fun ApplicationCall.respondHtml(status: HttpStatusCode = HttpStatusCode.OK, block: HTML.() -> Unit) {
+    respond(HtmlContent(status, block))
+}
 
 class Routing : NexusHubComponent {
 
@@ -49,9 +73,15 @@ class Routing : NexusHubComponent {
     val config: NexusHubServerConfig by inject()
     val talkersService: TalkersService by inject()
     val authService: AuthenticationService by inject()
+    val httpAuthService: HTTPAuthService by inject()
     val nodesService: NodesService by inject()
+    val accountsService: AccountsService by inject()
 
     val processingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+
+
+
 
     fun init(application: Application) {
         logger.info("Initializing routing")
@@ -61,7 +91,22 @@ class Routing : NexusHubComponent {
             timeout = Duration.ofSeconds(10)
         }
 
+        application.install(ContentNegotiation) {
+            json()
+        }
+
         application.routing {
+            get("/") {
+                call.respondHtml(HttpStatusCode.OK) {
+                    body {
+                        p {
+                            +"NexusHub server is running"
+                        }
+                    }
+                }
+            }
+
+
             route("connection") {
 
                 val networkConfig = config.network
@@ -77,6 +122,111 @@ class Routing : NexusHubComponent {
 
                 webSocket {
                     protocol(rateLimiter, interval)
+                }
+            }
+
+            post("login") {
+                val request = call.receive<AuthRequest>()
+                httpAuthService.login(call, request)
+            }
+
+            authenticate {
+
+                post("logout") {
+                    httpAuthService.logout(call)
+                }
+
+                route("accounts") {
+
+                    post("list") {
+                        val accounts = accountsService.getAccounts()
+
+                        val response = AccountsListResponse(
+                            accounts.map {
+                                Account(it.login, it.allowedScopes)
+                            }
+                        )
+                        call.respond(response)
+                    }
+
+                    post("create") {
+                        val request = call.receive<AccountCreateRequest>()
+                        val login = request.login
+                        val account = accountsService.getAccount(login)
+                        if (account != null) {
+                            call.respondText(
+                                text = "Account '$login' already exists",
+                                status = HttpStatusCode.Conflict
+                            )
+                            return@post
+                        }
+
+                        val password = request.password
+                        val scopes = request.scopes
+                        accountsService.createAccount(login, password, scopes)
+                        call.respondText("Success")
+                    }
+
+                    post("delete") {
+                        val request = call.receive<AccountDeleteRequest>()
+                        val login = request.login
+                        accountsService.deleteAccount(login)
+                        call.respondText("Success")
+                    }
+
+
+
+                    route("scopes") {
+
+                        post("list") {
+                            val request = call.receive<AccountScopesListRequest>()
+                            val login = request.login
+                            val account = accountsService.getAccount(login) ?: run {
+                                call.respondText("Account '$login' not found")
+                                return@post
+                            }
+                            val scopes = account.allowedScopes
+                            call.respond(AccountScopesListResponse(scopes))
+                        }
+
+                        post("update") {
+                            val request = call.receive<AccountScopesUpdateRequest>()
+
+                            val login = request.login
+                            val account = accountsService.getAccount(login) ?: run {
+                                call.respondText("Account '$login' not found")
+                                return@post
+                            }
+
+                            val action = request.action
+                            val scopes = request.scopes
+                            when (action) {
+                                AccountScopesUpdateRequest.Action.ADD -> {
+                                    scopes.forEach {
+                                        account.allowScope(it)
+                                    }
+                                }
+
+                                AccountScopesUpdateRequest.Action.REMOVE -> {
+                                    scopes.forEach {
+                                        account.removeScope(it)
+                                    }
+                                }
+
+                                AccountScopesUpdateRequest.Action.SET -> {
+                                    account.clearScopes()
+                                    scopes.forEach {
+                                        account.allowScope(it)
+                                    }
+                                }
+
+                                AccountScopesUpdateRequest.Action.CLEAR -> {
+                                    account.clearScopes()
+                                }
+                            }
+                            call.respondText("Success")
+                        }
+                    }
                 }
             }
         }
@@ -180,167 +330,5 @@ inline val ApplicationCall.addressStr: String
     get() = request.origin.let {
         "${it.remoteAddress}:${it.remotePort}"
     }
-
-fun Application.configureRouting() {
-
-    routing {
-//
-//        get("/") {
-//            call.respond(HtmlContent(HttpStatusCode.OK) {
-//                body {
-//                    p {
-//                        +"NexusHub server is running"
-//                    }
-//                }
-//            })
-//        }
-//
-//        route("accounts") {
-//            // Accounts page on server
-//
-//            get("create") {
-//                call.respond(HtmlContent(HttpStatusCode.OK) {
-//                    body {
-//                        form(action = "create", encType = FormEncType.applicationXWwwFormUrlEncoded, method = FormMethod.post) {
-//                            p {
-//                                +"Login: "
-//                                textInput(name = "login")
-//                            }
-//                            p {
-//                                +"Password: "
-//                                passwordInput(name = "password")
-//                            }
-//                            p {
-//                                +"Allowed scopes: "
-//                                textInput(name = "scopes")
-//                            }
-//                            p {
-//                                submitInput { value = "Create" }
-//                            }
-//                        }
-//                    }
-//                })
-//            }
-//
-//            post("create") {
-//                val formParameters = call.receiveParameters()
-//                val username = formParameters["login"].toString()
-//                val password = formParameters["password"].toString()
-//                val scopes = formParameters["scopes"].toString().split(",").toSet()
-//                AccountManager.newAccount(username, password, scopes)
-//                call.respondText("The '$username' account is created")
-//            }
-//
-//
-//            get("delete") {
-//                call.respond(HtmlContent(HttpStatusCode.OK) {
-//                    body {
-//                        form(action = "delete", encType = FormEncType.applicationXWwwFormUrlEncoded, method = FormMethod.post) {
-//                            p {
-//                                +"Login: "
-//                                textInput(name = "login")
-//                            }
-//                            p {
-//                                submitInput { value = "Delete" }
-//                            }
-//                        }
-//                    }
-//                })
-//            }
-//
-//            post("delete") {
-//                val formParameters = call.receiveParameters()
-//                val username = formParameters["login"].toString()
-//
-//                AccountManager.deleteAccount(username)
-//                NodesManager.connectedNodes.values.forEach {
-//                    if (it.account.login == username) {
-//                        it.close(CloseCode.UNEXPECTED_BEHAVIOUR, "Account deleted")
-//                    }
-//                }
-//
-//                call.respondText("The '$username' account is deleted")
-//            }
-//
-//            get("scopes") {
-//                call.respond(HtmlContent(HttpStatusCode.OK) {
-//                    body {
-//                        form(action = "scopes", encType = FormEncType.applicationXWwwFormUrlEncoded, method = FormMethod.post) {
-//                            p {
-//                                +"Login: "
-//                                textInput(name = "login")
-//                            }
-//                            p {
-//                                +"Scope: "
-//                                textInput(name = "scope")
-//                            }
-//
-//                            // Choose: Add scope, Remove scope, Clear scopes
-//                            p {
-//                                +"Add: "
-//                                checkBoxInput(name = "add") { value = "add" }
-//                            }
-//
-//                            p {
-//                                +"Remove: "
-//                                checkBoxInput(name = "remove") { value = "remove" }
-//                            }
-//
-//                            p {
-//                                +"Clear all: "
-//                                checkBoxInput(name = "clear all") { value = "clear" }
-//                            }
-//
-//                            p {
-//                                submitInput { value = "Go" }
-//                            }
-//                        }
-//                    }
-//                })
-//            }
-//
-//            post("scopes") {
-//                val formParameters = call.receiveParameters()
-//                val username = formParameters["login"].toString()
-//                val scope = formParameters["scope"].toString()
-//
-//                val add = formParameters["add"] != null
-//                val remove = formParameters["remove"] != null
-//                val clear = formParameters["clear all"] != null
-//
-//                val account = AccountManager.getAccount(username) ?: run {
-//                    call.respondText("Account '$username' not found")
-//                    return@post
-//                }
-//
-//                println("add: $add, remove: $remove, clear: $clear")
-//
-//                when {
-//                    add -> account.allowScope(scope)
-//                    remove -> account.removeScope(scope)
-//                    clear -> account.clearScopes()
-//                }
-//
-//                call.respondText("Account '$username' edited. New scopes: ${account.allowedScopes}")
-//            }
-//
-//            handle {
-//                println("called accounts route")
-//                call.respond(
-//                    AccountManager.accounts.mapValues {
-//                        it.value.dao
-//                    }
-//                        .let {
-//                            json.encodeToString(it)
-//                        }
-//                )
-//            }
-//        }
-
-
-
-    }
-}
-
 
 

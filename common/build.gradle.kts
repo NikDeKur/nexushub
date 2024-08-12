@@ -5,16 +5,16 @@ import org.gradle.kotlin.dsl.libs
 import org.gradle.kotlin.dsl.test
 import org.gradle.kotlin.dsl.testImplementation
 
-
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.licenser)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.shadowJar)
     id("maven-publish")
 }
 
 group = "dev.nikdekur.nexushub"
-version = "1.0.2"
+version = "1.1.0"
 
 val authorId: String by project
 val authorName: String by project
@@ -38,7 +38,7 @@ tasks.test {
 }
 
 
-val javaVersion = JavaVersion.VERSION_11
+val javaVersion = JavaVersion.VERSION_1_8
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
@@ -61,6 +61,15 @@ license {
 
 
 
+val repoUsernameProp = "NDK_REPO_USERNAME"
+val repoPasswordProp = "NDK_REPO_PASSWORD"
+val repoUsername = System.getenv(repoUsernameProp)
+val repoPassword = System.getenv(repoPasswordProp)
+
+if (repoUsername.isNullOrBlank() || repoPassword.isNullOrBlank()) {
+    throw GradleException("Environment variables $repoUsernameProp and $repoPasswordProp must be set.")
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -77,7 +86,24 @@ publishing {
                 }
             }
 
-            from(components["java"])
+            afterEvaluate {
+                val shadowJar = tasks.findByName("shadowJar")
+                if (shadowJar == null) from(components["java"])
+                else artifact(shadowJar)
+            }
         }
+    }
+
+    repositories {
+        maven {
+            name = "ndk-repo"
+            url = uri("https://repo.nikdekur.tech/releases")
+            credentials {
+                username = repoUsername
+                password = repoPassword
+            }
+        }
+
+        mavenLocal()
     }
 }

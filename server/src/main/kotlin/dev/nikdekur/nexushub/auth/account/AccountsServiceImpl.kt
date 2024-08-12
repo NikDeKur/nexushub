@@ -8,10 +8,13 @@
 
 package dev.nikdekur.nexushub.auth.account
 
+import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.auth.password.PasswordEncryptor
 import dev.nikdekur.nexushub.database.account.AccountDAO
 import dev.nikdekur.nexushub.database.account.AccountsTable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 class AccountsServiceImpl(
@@ -19,8 +22,12 @@ class AccountsServiceImpl(
 ) : AccountsService {
 
 
+    override fun getAccounts(): Collection<Account> {
+        return accounts.values
+    }
 
     val accounts = ConcurrentHashMap<String, Account>()
+
 
     init {
         runBlocking {
@@ -43,14 +50,19 @@ class AccountsServiceImpl(
         table.updateAccount(dao)
     }
 
-    override suspend fun newAccount(dao: AccountDAO): Account {
+    suspend fun createAccount(dao: AccountDAO): Account {
         table.newAccount(dao)
         val account = dao.toHighLevel()
         accounts[account.login] = account
         return account
     }
 
-    override suspend fun newAccount(login: String, password: String, allowedScopes : Set<String>): Account {
+    override suspend fun createAccount(
+        login: String,
+        password: String,
+        allowedScopes: Set<String>
+    ): Account {
+        require(getAccount(login) == null) { "Account with login \"$login\" already exists" }
         val encryptedPassword = PasswordEncryptor.encryptNew(password)
         val dao = AccountDAO(
             login = login,
@@ -58,7 +70,7 @@ class AccountsServiceImpl(
             salt = encryptedPassword.salt.hex,
             allowedScopes = allowedScopes
         )
-        return newAccount(dao)
+        return createAccount(dao)
     }
 
 
@@ -72,5 +84,14 @@ class AccountsServiceImpl(
     override suspend fun deleteAccount(login: String) {
         table.deleteAccount(login)
         accounts.remove(login)
+    }
+
+
+
+    val encryptingDispatcher = Dispatchers.Default
+    override suspend fun matchPassword(real: EncryptedPassword, test: String): Boolean {
+        return withContext(encryptingDispatcher) {
+            real.isEqual(test)
+        }
     }
 }

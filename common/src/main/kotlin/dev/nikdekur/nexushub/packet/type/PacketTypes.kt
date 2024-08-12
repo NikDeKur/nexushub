@@ -54,7 +54,7 @@ object PacketTypes {
 
     internal inline fun <reified T : Packet> new(): PacketType<T> {
         val clazz = T::class.java
-        check(clazz.constructors.any { it.parameterCount == 0 }) {
+        require(clazz.constructors.any { it.parameterCount == 0 }) {
             "Packet '${clazz.name}' class should have an empty constructor!"
         }
 

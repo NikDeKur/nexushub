@@ -8,7 +8,6 @@
 
 package dev.nikdekur.nexushub.config
 
-import dev.nikdekur.nexushub.config.network.NexusNetworkConfig
 import kotlinx.serialization.Serializable
 
 @Serializable

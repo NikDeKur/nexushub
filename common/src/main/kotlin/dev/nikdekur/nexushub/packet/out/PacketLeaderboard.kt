@@ -42,10 +42,9 @@ class PacketLeaderboard : Packet {
     }
 
     override fun deserialize(deserializer: PacketDeserializer) {
-        val size = deserializer.readUByte().toInt()
-
-
         var startFrom = deserializer.readInt().dec()
+
+        val size = deserializer.readUByte().toInt()
 
         this.leaderboard = buildLeaderboard(size) {
             this.startFrom = startFrom

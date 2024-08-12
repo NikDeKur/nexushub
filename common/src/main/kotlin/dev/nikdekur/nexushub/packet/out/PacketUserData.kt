@@ -17,12 +17,12 @@ import dev.nikdekur.nexushub.packet.type.PacketTypes.USER_DATA
 /**
  * (OUT) Packet to send requested user data from the database
  */
-class PacketUserData : Packet {
+class PacketUserData : Packet.Session {
 
     override val packetId = USER_DATA.id
 
-    var holderId: String = ""
-    var scopeId: String = ""
+    override var holderId: String = ""
+    override var scopeId: String = ""
     var data: String = ""
 
     constructor()

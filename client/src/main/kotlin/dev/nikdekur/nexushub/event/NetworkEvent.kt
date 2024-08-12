@@ -19,7 +19,6 @@ import dev.nikdekur.nexushub.packet.out.PacketRequestSync
 import dev.nikdekur.nexushub.packet.out.PacketStopSession
 import dev.nikdekur.nexushub.packet.out.PacketTopPosition
 import dev.nikdekur.nexushub.packet.out.PacketUserData
-import kotlin.getValue
 
 sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
 
@@ -35,6 +34,14 @@ sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
     ) = respond<Unit>(packet, builder)
 
 
+
+    sealed class ScopeEvent(context: IncomingContext<out Packet.Scope>) : NetworkEvent(context) {
+        val scopeId by context.packet::scopeId
+    }
+
+    sealed class SessionEvent(context: IncomingContext<out Packet.Session>) : ScopeEvent(context) {
+        val holderId by context.packet::holderId
+    }
 
 
 
@@ -53,16 +60,11 @@ sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
         val position by packet::requestPosition
     }
 
-    class Sync(context: IncomingContext<PacketRequestSync>) : NetworkEvent(context) {
-        val packet by context::packet
-        val scopeId by packet::scopeId
-    }
+    class Sync(context: IncomingContext<PacketRequestSync>) : ScopeEvent(context)
 
 
-    class StopSession(context: IncomingContext<PacketStopSession>) : NetworkEvent(context) {
+    class StopSession(context: IncomingContext<PacketStopSession>) : SessionEvent(context) {
         val packet by context::packet
-        val holderId by packet::holderId
-        val scopeId by packet::scopeId
     }
 
     class TopPosition(context: IncomingContext<PacketTopPosition>) : NetworkEvent(context) {
@@ -71,10 +73,8 @@ sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
     }
 
 
-    class UserData(context: IncomingContext<PacketUserData>) : NetworkEvent(context) {
+    class UserData(context: IncomingContext<PacketUserData>) : SessionEvent(context) {
         val packet by context::packet
-        val holderId by packet::holderId
-        val scopeId by packet::scopeId
         val data by packet::data
     }
 

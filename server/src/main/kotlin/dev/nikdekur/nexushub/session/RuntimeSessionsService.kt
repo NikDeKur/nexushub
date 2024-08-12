@@ -8,7 +8,6 @@
 
 package dev.nikdekur.nexushub.session
 
-import dev.nikdekur.ndkore.ext.parallel
 import dev.nikdekur.ndkore.map.multi.ConcurrentMultiHashMap
 import dev.nikdekur.ndkore.map.set.ConcurrentSetsHashMap
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
@@ -17,10 +16,11 @@ import dev.nikdekur.nexushub.node.ClientNode
 import dev.nikdekur.nexushub.scope.Scope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import org.koin.core.component.inject
 
-class SessionsServiceImpl : SessionsService, NexusHubComponent {
+class RuntimeSessionsService : SessionsService, NexusHubComponent {
 
     val config by inject<NexusHubServerConfig>()
 
@@ -70,8 +70,10 @@ class SessionsServiceImpl : SessionsService, NexusHubComponent {
     override suspend fun requestSync(scope: Scope) {
         val nodes = scopeToNodes[scope.id]
 
-        syncingScope.parallel(config.data.sync_parallelism, nodes) {
-            it.requestSync(scope)
+        nodes.map {
+            syncingScope.async {
+                it.requestSync(scope)
+            }
         }.awaitAll()
     }
 }

@@ -24,7 +24,7 @@ import org.koin.dsl.KoinAppDeclaration
  *
  * @see org.koin.core.context.GlobalContext
  */
-object NexusHubContext : KoinContext {
+object NexusHubKoinContext : KoinContext {
     /** The current [Koin] instance. */
     private var koin: Koin? = null
 

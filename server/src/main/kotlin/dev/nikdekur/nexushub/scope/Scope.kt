@@ -19,7 +19,6 @@ import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.data.buildLeaderboard
 import dev.nikdekur.nexushub.database.scope.ScopeTable
-import dev.nikdekur.nexushub.database.scope.ScopesTable
 import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.util.NexusData
 import org.koin.core.component.inject
@@ -30,8 +29,6 @@ data class Scope(
     override val id: String,
     val collection: ScopeTable
 ) : Snowflake<String>, NexusHubComponent {
-
-    val scopesTable by inject<ScopesTable>()
 
     val logger = LoggerFactory.getLogger(javaClass)
 

@@ -20,10 +20,10 @@ fun loadModule(
 ): Module {
     val moduleObj = module(createdAtStart, moduleDeclaration)
 
-    NexusHubContext.loadKoinModules(moduleObj)
+    NexusHubKoinContext.loadKoinModules(moduleObj)
 
     return moduleObj
 }
 
 /** Retrieve the current [Koin] instance. **/
-fun getKoin(): Koin = NexusHubContext.get()
+fun getKoin(): Koin = NexusHubKoinContext.get()

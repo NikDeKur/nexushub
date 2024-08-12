@@ -1,6 +1,7 @@
 @file:Suppress("PropertyName")
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 
 plugins {
@@ -10,17 +11,16 @@ plugins {
     alias(libs.plugins.ktor)
     alias(libs.plugins.shadowJar)
     application
-    id("maven-publish")
 }
 
 group = "dev.nikdekur.nexushub"
-version = "1.0.2"
+version = "1.1.0"
 
 val authorId: String by project
 val authorName: String by project
 
 application {
-    mainClass.set("io.ktor.server.netty.EngineMain")
+    mainClass.set("dev.nikdekur.nexushub.NexusHubServerBoot")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -33,22 +33,22 @@ repositories {
 
 dependencies {
     implementation(project(":common"))
-    implementation(libs.common)
     implementation(libs.logback)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.websockets)
-    implementation(libs.ktor.server.config.yaml)
+    implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.html.builder)
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.gson)
     implementation(libs.ndkore)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.yamlkt)
     implementation(libs.mongodb)
-    implementation(libs.bouncycastle)
+    implementation(libs.bouncycastle.prov)
+    implementation(libs.bouncycastle.pkix)
     implementation(libs.guava)
     implementation(libs.koin)
-    testImplementation(libs.ktor.server.tests)
     testImplementation(libs.kotlin.test.junit)
 }
 
@@ -72,27 +72,22 @@ license {
 
 
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = project.group.toString()
-            artifactId = project.name
-            version = project.version.toString()
-
-            pom {
-                developers {
-                    developer {
-                        id.set(authorId)
-                        name.set(authorName)
-                    }
-                }
-            }
-
-            from(components["java"])
-        }
+// Remove Java compatibility made by params non-null assertions
+tasks.withType<KotlinCompile> {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xno-param-assertions", "-Xno-call-assertions")
     }
 }
 
 tasks.withType<ShadowJar> {
-    minimize()
+    archiveClassifier.set("")
+    archiveFileName.set("${project.name}-${project.version}.jar")
+
+    // Include all output directories and runtime classpath from all subprojects
+    allprojects.forEach { project ->
+        from(project.sourceSets.main.get().output)
+        configurations.add(project.configurations.runtimeClasspath.get())
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

@@ -8,6 +8,7 @@
 
 package dev.nikdekur.nexushub.packet
 
+import dev.nikdekur.ndkore.ext.buildRepresentation
 import dev.nikdekur.nexushub.packet.serialize.PacketDeserializer
 import dev.nikdekur.nexushub.packet.serialize.PacketSerializer
 
@@ -37,5 +38,15 @@ abstract class Packet {
         return serializer.finish()
     }
 
-    abstract override fun toString(): String
+    override fun toString(): String {
+        return buildRepresentation(this)
+    }
+
+    abstract class Scope : Packet() {
+        abstract val scopeId: String
+    }
+
+    abstract class Session : Scope() {
+        abstract val holderId: String
+    }
 }

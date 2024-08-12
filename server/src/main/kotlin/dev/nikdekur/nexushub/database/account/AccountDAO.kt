@@ -10,14 +10,14 @@
 
 package dev.nikdekur.nexushub.database.account
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-import org.bson.codecs.pojo.annotations.BsonId
-import org.bson.types.ObjectId
 import dev.nikdekur.nexushub.auth.account.Account
 import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.auth.password.Salt
 import dev.nikdekur.nexushub.auth.password.fromHEX
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import org.bson.codecs.pojo.annotations.BsonId
+import org.bson.types.ObjectId
 
 @Serializable
 data class AccountDAO(
@@ -25,7 +25,7 @@ data class AccountDAO(
     val login: String,
     val password: String,
     val salt: String,
-    val allowedScopes: Set<String>,
+    val allowedScopes: Set<String>
 ) {
 
 

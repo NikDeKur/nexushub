@@ -11,26 +11,51 @@ package dev.nikdekur.nexushub.service
 import dev.nikdekur.nexushub.NexusHub
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
+import dev.nikdekur.nexushub.event.NetworkEvent
+import dev.nikdekur.nexushub.scope.ScopeData
 import dev.nikdekur.nexushub.serialization.DataSerializer
 import dev.nikdekur.nexushub.sesion.Session
-import org.slf4j.Logger
 import java.util.*
 
 /**
  * A NexusHub Client service used to store a group of sessions on a client.
  *
+ * The service is used to manage the sessions and the data of the holders.
+ * The service is responsible for starting and stopping the sessions,
+ * saving the data and managing the sessions' lifecycle.
  *
+ * @param H The holder type.
+ * @param S The session data type.
+ * @see [Session]
  */
-interface NexusService<H, S> {
+interface NexusService<H, S : ScopeData<S>> {
 
+    /**
+     * The NexusHub instance that is responsible for the service.
+     */
     val hub: NexusHub
 
-    val logger: Logger
 
-    var isRunning: Boolean
-
+    /**
+     * The serializer used to serialize and deserialize the data of the sessions.
+     */
     val serializer: DataSerializer<H, S>
 
+
+    /**
+     * State of the service.
+     */
+    var isActive: Boolean
+
+
+    /**
+     * Gets the id of the holder.
+     *
+     * Id is used to identifying the holder in the database and should be unique for each holder.
+     *
+     * @param holder The holder to get the id for.
+     * @return The id of the holder.
+     */
     fun getId(holder: H): String
 
 
@@ -41,15 +66,18 @@ interface NexusService<H, S> {
      */
     val scope: String
 
+
     /**
      * The collection of existing sessions.
      */
     val sessions: Collection<Session<H, S>>
 
+
     /**
      * Starts the service
      */
     fun start()
+
 
     /**
      * Stops the service and all the sessions.
@@ -69,6 +97,7 @@ interface NexusService<H, S> {
      */
     fun createSession(holder: H): Session<H, S>
 
+
     /**
      * Starts a session for the given holder.
      *
@@ -83,6 +112,7 @@ interface NexusService<H, S> {
      */
     suspend fun startSession(holder: H): Session<H, S>
 
+
     /**
      * Stops the session and starting data save for the given holder.
      *
@@ -95,9 +125,13 @@ interface NexusService<H, S> {
     suspend fun stopSession(session: Session<H, S>)
 
 
-    fun removeSession(session: Session<H, S>)
-
+    /**
+     * Saves all the sessions' data.
+     *
+     * Does not stop the sessions and doesn't interrupt any processes.
+     */
     suspend fun saveAllSessions()
+
 
     /**
      * Restarts the session for the given holder.
@@ -113,6 +147,7 @@ interface NexusService<H, S> {
         session?.let { stopSession(it) }
         return startSession(holder)
     }
+
 
     /**
      * Gets the active session for the given holder.
@@ -139,6 +174,7 @@ interface NexusService<H, S> {
      */
     fun getExistingSession(holderId: String): Session<H, S>?
 
+
     /**
      * Checks if the holder has an active session.
      *
@@ -149,17 +185,54 @@ interface NexusService<H, S> {
         return getExistingSession(holderId) != null
     }
 
+
     /**
      * Request a leaderboard from the server with the specified parameters
      *
-     * @param field The field to sort by
-     * @param limit The limit of entries to return
+     * @param field The user data field to get the leaderboard for
+     * @param startFrom The start index of the leaderboard, how many entries to skip
+     * @param limit The limit of the leaderboard, how many entries to get
+     * @return The leaderboard
+     * @see [getLeaderboardAndPosition]
+     * @see [Leaderboard]
      */
     suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard
 
 
+    /**
+     * Request a leaderboard position of a holder from the server with the specified parameters
+     *
+     * @param field The user data field to get the leaderboard position for
+     * @param holderId The holder id to get the leaderboard position for
+     * @return The leaderboard entry or null if the holder has no data at the field
+     * @see [getLeaderboardAndPosition]
+     * @see [LeaderboardEntry]
+     */
     suspend fun getLeaderboardPosition(field: String, holderId: String): LeaderboardEntry?
 
 
+    /**
+     * Request a leaderboard and position of a holder from the server with the specified parameters
+     *
+     * Should be preferred over [getLeaderboard] and [getLeaderboardPosition]
+     *
+     * @param field The user data field to get the leaderboard and position for
+     * @param startFrom The start index of the leaderboard, how many entries to skip
+     * @param limit The limit of the leaderboard, how many entries to get
+     * @param holderId The holder id to get the leaderboard position for
+     * @return The leaderboard and the leaderboard entry or null if the holder has no data at the field
+     * @see [getLeaderboard]
+     * @see [getLeaderboardPosition]
+     * @see [Leaderboard]
+     * @see [LeaderboardEntry]
+     */
     suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?>
+
+
+    /**
+     * Event Handler for the service.
+     *
+     * Handle network events related to the service.
+     */
+    suspend fun onEvent(event: NetworkEvent.ScopeEvent)
 }

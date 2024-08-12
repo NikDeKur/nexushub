@@ -8,11 +8,12 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.database.account
+package dev.nikdekur.nexushub.database.mongo
 
 import com.mongodb.client.result.DeleteResult
 import com.mongodb.kotlin.client.coroutine.MongoCollection
-import dev.nikdekur.nexushub.database.mongo.eq
+import dev.nikdekur.nexushub.database.account.AccountDAO
+import dev.nikdekur.nexushub.database.account.AccountsTable
 import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
 
@@ -21,7 +22,9 @@ class MongoAccountsTable(
 ) : AccountsTable {
 
     override suspend fun fetchAllAccounts(): List<AccountDAO> {
-        return table.find().toList()
+        return table
+            .find()
+            .toList()
     }
 
     override suspend fun newAccount(dao: AccountDAO) {

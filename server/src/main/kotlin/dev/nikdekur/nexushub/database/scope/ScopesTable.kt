@@ -8,8 +8,6 @@
 
 package dev.nikdekur.nexushub.database.scope
 
-import dev.nikdekur.nexushub.database.mongo.scope.ScopeDAO
-
 interface ScopesTable {
 
     suspend fun createScope(dao: ScopeDAO)

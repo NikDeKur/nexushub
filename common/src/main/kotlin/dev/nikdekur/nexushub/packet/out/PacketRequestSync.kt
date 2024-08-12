@@ -13,10 +13,10 @@ import dev.nikdekur.nexushub.packet.serialize.PacketDeserializer
 import dev.nikdekur.nexushub.packet.serialize.PacketSerializer
 import dev.nikdekur.nexushub.packet.type.PacketTypes.REQUEST_SYNC
 
-class PacketRequestSync : Packet {
+class PacketRequestSync : Packet.Scope {
     override val packetId = REQUEST_SYNC.id
 
-    var scopeId: String = ""
+    override var scopeId: String = ""
 
     constructor()
     constructor(scope: String) {

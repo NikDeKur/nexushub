@@ -10,30 +10,31 @@ package dev.nikdekur.nexushub.service
 
 import dev.nikdekur.ndkore.ext.*
 import dev.nikdekur.nexushub.NexusHub
-import dev.nikdekur.nexushub.connection.prepareBatchSaveData
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
+import dev.nikdekur.nexushub.event.NetworkEvent
+import dev.nikdekur.nexushub.packet.PacketError
+import dev.nikdekur.nexushub.packet.PacketError.Level
 import dev.nikdekur.nexushub.packet.PacketOk
 import dev.nikdekur.nexushub.packet.`in`.PacketBatchSaveData
 import dev.nikdekur.nexushub.packet.`in`.PacketEndSession
 import dev.nikdekur.nexushub.packet.`in`.PacketRequestLeaderboard
 import dev.nikdekur.nexushub.packet.`in`.PacketRequestTopPosition
+import dev.nikdekur.nexushub.packet.`in`.PacketSaveData
 import dev.nikdekur.nexushub.packet.out.PacketLeaderboard
 import dev.nikdekur.nexushub.packet.out.PacketTopPosition
+import dev.nikdekur.nexushub.scope.ScopeData
 import dev.nikdekur.nexushub.serialization.DataSerializer
 import dev.nikdekur.nexushub.sesion.Session
 import dev.nikdekur.nexushub.sesion.SessionImpl
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-abstract class AbstractNexusService<H, S>(
+abstract class AbstractNexusService<H, S : ScopeData<S>>(
     override val hub: NexusHub
 ) : NexusService<H, S> {
 
-    override val logger: Logger by lazy {
-        LoggerFactory.getLogger("NexusHub-$scope")
-    }
+    val logger = LoggerFactory.getLogger("NexusHub-$scope")
 
     open val sessionsLimit: Long = -1
     abstract override val serializer: DataSerializer<H, S>
@@ -44,7 +45,7 @@ abstract class AbstractNexusService<H, S>(
         return SessionImpl(this, holder)
     }
 
-    override fun removeSession(session: Session<H, S>) {
+    open fun removeSession(session: Session<H, S>) {
         session.state = Session.State.INACTIVE
         sessionsCache.remove(session.id)
     }
@@ -52,16 +53,16 @@ abstract class AbstractNexusService<H, S>(
     override val sessions: Collection<Session<H, S>>
         get() = sessionsCache.values
 
-    override var isRunning: Boolean = false
+    override var isActive: Boolean = false
 
     override fun start() {
-        isRunning = true
+        isActive = true
     }
 
     override suspend fun stop() {
         logger.info { "Stopping service $scope" }
 
-        isRunning = false
+        isActive = false
 
         sessionsCache.clear {
             value.stop()
@@ -165,7 +166,7 @@ abstract class AbstractNexusService<H, S>(
     }
 
     override suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?> {
-        check(holderId.isNotEmpty()) { "positionOf cannot be empty" }
+        require(holderId.isNotEmpty()) { "positionOf cannot be empty" }
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, holderId)
 
         return hub.gateway.sendPacket(packet) {
@@ -182,4 +183,83 @@ abstract class AbstractNexusService<H, S>(
             .await()
             .let { it.leaderboard to it.requestPosition }
     }
+
+    override suspend fun onEvent(event: NetworkEvent.ScopeEvent) {
+        when (event) {
+            is NetworkEvent.StopSession -> processStopSession(event)
+            is NetworkEvent.Sync -> processSyncData(event)
+            else -> {
+                // ignore
+            }
+        }
+    }
+
+    suspend fun processStopSession(event: NetworkEvent.StopSession) {
+        val scope = event.scopeId
+        val holderId = event.holderId
+
+        val session = getExistingSession(holderId)
+        if (session == null) {
+            event.context.respond<String>(
+                PacketError(
+                    Level.ERROR,
+                    PacketError.Code.SESSION_NOT_FOUND,
+                    "No session found"
+                )
+            )
+            return
+        }
+
+        if (!session.hasDataUpdated()) {
+            event.respond(PacketOk("No data to save"))
+            return
+        }
+
+        val data = session.serializeData()
+        val savePacket = PacketSaveData(scope, holderId, data)
+
+        removeSession(session)
+
+        event.respond(savePacket)
+    }
+
+
+
+    suspend fun processSyncData(event: NetworkEvent.Sync) {
+        val scopeId = event.scopeId
+
+        logger.debug("[$scopeId] Processing sync data")
+
+        suspend fun ok() {
+            logger.debug("[$scopeId] No data to save")
+            event.respond(PacketOk("No data to save"))
+        }
+
+        val batchMap = prepareBatchSaveData()
+        if (batchMap.isEmpty())
+            return ok()
+
+
+        val batchPacket = PacketBatchSaveData(scopeId, batchMap)
+        logger.debug("[$scopeId] Sending batch save data")
+        event.respond(batchPacket)
+    }
+
+    suspend fun prepareBatchSaveData(): Map<String, String> {
+        val sessions = sessions
+        if (!isActive || sessions.isEmpty())
+            return emptyMap()
+
+        val batchMap = HashMap<String, String>()
+
+        sessions.forEach {
+            if (!it.hasDataUpdated()) return@forEach
+
+            val dataStr = it.serializeData()
+            batchMap[it.id] = dataStr
+        }
+
+        return batchMap
+    }
+
 }

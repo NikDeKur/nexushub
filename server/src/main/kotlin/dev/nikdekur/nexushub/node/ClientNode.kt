@@ -253,8 +253,9 @@ class ClientNode(
 
         logger.info("Position: $position")
 
-        context.respond<Unit>(PacketLeaderboard(startFrom, leaderboard, position))
-        logger.info("Responded")
+        val packetLeaderboard = PacketLeaderboard(startFrom, leaderboard, position)
+        context.respond<Unit>(packetLeaderboard)
+        logger.info("Responded with $packetLeaderboard")
     }
 
     suspend fun processTopPositionPacket(context: IncomingContext<PacketRequestTopPosition>) {

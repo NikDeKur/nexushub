@@ -13,11 +13,11 @@ import dev.nikdekur.nexushub.packet.serialize.PacketDeserializer
 import dev.nikdekur.nexushub.packet.serialize.PacketSerializer
 import dev.nikdekur.nexushub.packet.type.PacketTypes
 
-class PacketStopSession : Packet {
+class PacketStopSession : Packet.Session {
     override val packetId = PacketTypes.STOP_SESSION.id
 
-    var scopeId: String = ""
-    var holderId: String = ""
+    override var scopeId: String = ""
+    override var holderId: String = ""
 
     constructor() : super()
     constructor(scopeId: String, holderId: String) : super() {

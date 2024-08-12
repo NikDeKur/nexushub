@@ -8,14 +8,20 @@
 
 package dev.nikdekur.nexushub.auth.account
 
+import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.database.account.AccountDAO
 
 interface AccountsService {
 
+    fun getAccounts(): Collection<Account>
+
     fun getAccount(login: String): Account?
     suspend fun updateAccount(dao: AccountDAO)
-    suspend fun newAccount(dao: AccountDAO): Account
-    suspend fun newAccount(login: String, password: String, allowedScopes : Set<String>): Account
+    suspend fun createAccount(
+        login: String,
+        password: String,
+        allowedScopes: Set<String>
+    ): Account
 
     /**
      * Deletes an account from the database and the cache.
@@ -25,5 +31,8 @@ interface AccountsService {
      * @param login The login of the account to delete.
      */
     suspend fun deleteAccount(login: String)
+
+
+    suspend fun matchPassword(pass1: EncryptedPassword, pass2: String): Boolean
 
 }

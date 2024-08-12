@@ -6,7 +6,7 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.database.mongo.scope
+package dev.nikdekur.nexushub.database.scope
 
 import org.bson.codecs.pojo.annotations.BsonId
 import org.bson.types.ObjectId

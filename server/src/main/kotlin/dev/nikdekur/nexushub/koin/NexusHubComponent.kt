@@ -11,5 +11,5 @@ package dev.nikdekur.nexushub.koin
 import org.koin.core.component.KoinComponent
 
 interface NexusHubComponent : KoinComponent {
-    override fun getKoin() = NexusHubContext.get()
+    override fun getKoin() = NexusHubKoinContext.get()
 }

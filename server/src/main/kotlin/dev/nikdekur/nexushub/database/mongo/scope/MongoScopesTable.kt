@@ -12,6 +12,7 @@ package dev.nikdekur.nexushub.database.mongo.scope
 
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import dev.nikdekur.nexushub.database.mongo.eq
+import dev.nikdekur.nexushub.database.scope.ScopeDAO
 import dev.nikdekur.nexushub.database.scope.ScopesTable
 import kotlinx.coroutines.flow.firstOrNull
 import org.bson.conversions.Bson

@@ -13,6 +13,7 @@ package dev.nikdekur.nexushub.database.mongo.scope
 import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import dev.nikdekur.nexushub.database.mongo.indexOptions
+import dev.nikdekur.nexushub.database.scope.ScopeDAO
 import dev.nikdekur.nexushub.database.scope.ScopeTable
 import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.scope.ScopesService

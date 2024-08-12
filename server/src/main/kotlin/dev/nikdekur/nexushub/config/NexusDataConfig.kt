@@ -19,8 +19,4 @@ data class NexusDataConfig(
     val cache_expiration: Long = 300,
     @Comment("Maximum number of cached holder data by each scope")
     val cache_max_size: Long = 1000,
-    @Comment("Number of threads used at the same time to save data")
-    val save_parallelism: Int = 16,
-    @Comment("Number of threads used at the same time to sync data")
-    val sync_parallelism: Int = 16,
 )

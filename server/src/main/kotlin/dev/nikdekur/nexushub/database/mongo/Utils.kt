@@ -16,6 +16,7 @@ import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import kotlinx.coroutines.flow.firstOrNull
 import org.bson.conversions.Bson
+import kotlin.reflect.KProperty
 
 suspend inline fun <reified T : Any> MongoDatabase.ensureCollectionExists(
     name: String,
@@ -43,3 +44,4 @@ inline fun indexOptions(block: IndexOptions.() -> Unit): IndexOptions {
 
 
 inline infix fun String.eq(value: Any): Bson = Filters.eq(this, value)
+inline infix fun <T> KProperty<T>.eq(value: Any): Bson = Filters.eq(this.name, value)

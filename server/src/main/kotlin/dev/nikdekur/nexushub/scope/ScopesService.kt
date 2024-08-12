@@ -8,7 +8,7 @@
 
 package dev.nikdekur.nexushub.scope
 
-import dev.nikdekur.nexushub.database.mongo.scope.ScopeDAO
+import dev.nikdekur.nexushub.database.scope.ScopeDAO
 import dev.nikdekur.nexushub.database.scope.ScopeTable
 
 interface ScopesService {

@@ -6,14 +6,12 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.config.network
+package dev.nikdekur.nexushub.modal.out
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class NexusNetworkConfig(
-    val ping: NexusPingConfig,
-    @SerialName("rate_limit")
-    val rateLimit: NexusRateLimitConfig
+data class AuthSuccess(
+    val token: String,
+    val endsBy: Long
 )

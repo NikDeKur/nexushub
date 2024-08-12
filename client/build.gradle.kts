@@ -5,11 +5,12 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.licenser)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.shadowJar)
     id("maven-publish")
 }
 
 group = "dev.nikdekur.nexushub"
-version = "1.0.2"
+version = "1.1.0"
 
 val authorId: String by project
 val authorName: String by project
@@ -30,13 +31,15 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.atomicfu)
     implementation(libs.guava)
 
 
 }
 
-val javaVersion = JavaVersion.VERSION_11
+val javaVersion = JavaVersion.VERSION_1_8
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
@@ -58,6 +61,15 @@ license {
 
 
 
+val repoUsernameProp = "NDK_REPO_USERNAME"
+val repoPasswordProp = "NDK_REPO_PASSWORD"
+val repoUsername = System.getenv(repoUsernameProp)
+val repoPassword = System.getenv(repoPasswordProp)
+
+if (repoUsername.isNullOrBlank() || repoPassword.isNullOrBlank()) {
+    throw GradleException("Environment variables $repoUsernameProp and $repoPasswordProp must be set.")
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -74,13 +86,24 @@ publishing {
                 }
             }
 
-            from(components["java"])
+            afterEvaluate {
+                val shadowJar = tasks.findByName("shadowJar")
+                if (shadowJar == null) from(components["java"])
+                else artifact(shadowJar)
+            }
         }
     }
-}
 
-tasks.javadoc {
-    if (JavaVersion.current().isJava9Compatible) {
-        (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
+    repositories {
+        maven {
+            name = "ndk-repo"
+            url = uri("https://repo.nikdekur.tech/releases")
+            credentials {
+                username = repoUsername
+                password = repoPassword
+            }
+        }
+
+        mavenLocal()
     }
 }

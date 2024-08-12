@@ -12,17 +12,19 @@ import dev.nikdekur.nexushub.packet.*
 import dev.nikdekur.nexushub.packet.`in`.PacketLoadData
 import dev.nikdekur.nexushub.packet.`in`.PacketSaveData
 import dev.nikdekur.nexushub.packet.out.PacketUserData
+import dev.nikdekur.nexushub.scope.ScopeData
 import dev.nikdekur.nexushub.service.NexusService
 import dev.nikdekur.nexushub.sesion.Session.State
+import org.slf4j.LoggerFactory
 
-open class SessionImpl<H, S>(
+open class SessionImpl<H, S : ScopeData<S>>(
     override val service: NexusService<H, S>,
     override val holder: H,
 ) : Session<H, S> {
 
     override val id = service.getId(holder)
 
-    val logger by service::logger
+    val logger = LoggerFactory.getLogger(javaClass)
 
     private var _data: S? = null
 
@@ -34,6 +36,8 @@ open class SessionImpl<H, S>(
             return data
         }
 
+
+
     override var state = State.INACTIVE
 
     /**
@@ -41,7 +45,7 @@ open class SessionImpl<H, S>(
      */
     var latestSaveScreen: S? = null
 
-    override fun hasDataUpdated(): Boolean {
+    override suspend fun hasDataUpdated(): Boolean {
         if (state != State.ACTIVE)
             return false
 
@@ -77,9 +81,12 @@ open class SessionImpl<H, S>(
             }
 
 
+
             val serializer = service.serializer
-            _data = serializer.deserialize(this, dataStr)
-            latestSaveScreen = serializer.deserialize(this, dataStr)
+            serializer.deserialize(this, dataStr).let {
+                _data = it
+                latestSaveScreen = it.clone()
+            }
 
             state = State.ACTIVE
 

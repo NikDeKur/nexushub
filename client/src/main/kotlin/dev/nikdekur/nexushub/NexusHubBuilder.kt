@@ -75,11 +75,11 @@ class NexusHubBuilder {
         val retry = LinearRetry(2.seconds, 30.seconds, 10)
 
         fun validate() {
-            checkNotNull(host) { "Host is not initialized" }
-            checkNotNull(port) { "Port is not initialized" }
-            checkNotNull(login) { "Login is not initialized" }
-            checkNotNull(password) { "Password is not initialized" }
-            checkNotNull(node) { "Node is not initialized" }
+            requireNotNull(host) { "Host is not initialized" }
+            requireNotNull(port) { "Port is not initialized" }
+            requireNotNull(login) { "Login is not initialized" }
+            requireNotNull(password) { "Password is not initialized" }
+            requireNotNull(node) { "Node is not initialized" }
         }
     }
 }

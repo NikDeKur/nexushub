@@ -16,7 +16,7 @@ import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-class TalkersServiceImpl : TalkersService, NexusHubComponent {
+class RuntimeTalkersService : TalkersService, NexusHubComponent {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
