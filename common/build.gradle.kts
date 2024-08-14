@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.licenser)
     alias(libs.plugins.kotlinSerialization)
-    alias(libs.plugins.shadowJar)
     id("maven-publish")
 }
 
@@ -38,12 +37,19 @@ tasks.test {
 }
 
 
+tasks.register<Jar>("sourcesJar") {
+    archiveClassifier.set("sources")
+    // Include all output directories and runtime classpath from all subprojects
+    allprojects.forEach { project ->
+        from(project.sourceSets.main.get().allSource)
+    }
+}
+
+
 val javaVersion = JavaVersion.VERSION_1_8
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
-    // withJavadocJar()
-    withSourcesJar()
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(javaVersion.majorVersion))
     }
@@ -90,6 +96,9 @@ publishing {
                 val shadowJar = tasks.findByName("shadowJar")
                 if (shadowJar == null) from(components["java"])
                 else artifact(shadowJar)
+
+                // Source jar
+                artifact(tasks.named("sourcesJar", Jar::class.java))
             }
         }
     }

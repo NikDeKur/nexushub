@@ -8,15 +8,18 @@
 
 package dev.nikdekur.nexushub.talker
 
-import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.node.NodesService
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.session.SessionsService
 import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-class RuntimeTalkersService : TalkersService, NexusHubComponent {
+class RuntimeTalkersService(
+    override val app: NexusHubServer
+) : NexusHubService, TalkersService {
 
     val logger = LoggerFactory.getLogger(javaClass)
 

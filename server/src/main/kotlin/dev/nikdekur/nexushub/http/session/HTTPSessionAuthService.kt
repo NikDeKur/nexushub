@@ -8,26 +8,27 @@
 
 package dev.nikdekur.nexushub.http.session
 
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.http.HTTPAuthService.EnsureAuthResponse
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
 import dev.nikdekur.nexushub.modal.out.AuthSuccess
 import dev.nikdekur.nexushub.network.auth.RootToken
+import dev.nikdekur.nexushub.service.NexusHubService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import java.util.UUID
 
-class HTTPSessionAuthService : HTTPAuthService {
+class HTTPSessionAuthService(
+    override val app: NexusHubServer
+) : NexusHubService, HTTPAuthService {
 
     var rootToken: RootToken? = null
 
     override suspend fun login(call: ApplicationCall, request: AuthRequest): Boolean {
-        val request = call.receive<AuthRequest>()
-
         if (request.login != "root") {
             // TODO: When will create more accounts don't forget to make fake argon2 hashing time
             // To prevent users to know if the account exists or not.

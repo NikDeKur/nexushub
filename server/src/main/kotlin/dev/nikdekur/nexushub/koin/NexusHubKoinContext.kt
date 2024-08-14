@@ -11,7 +11,7 @@ package dev.nikdekur.nexushub.koin
 import org.koin.core.Koin
 import org.koin.core.KoinApplication
 import org.koin.core.context.KoinContext
-import org.koin.core.error.KoinAppAlreadyStartedException
+import org.koin.core.error.KoinApplicationAlreadyStartedException
 import org.koin.core.module.Module
 import org.koin.dsl.KoinAppDeclaration
 
@@ -53,7 +53,7 @@ object NexusHubKoinContext : KoinContext {
      */
     private fun register(koinApplication: KoinApplication) {
         if (koin != null) {
-            throw KoinAppAlreadyStartedException("NexusHub Koin Application has already been started")
+            throw KoinApplicationAlreadyStartedException("NexusHub Koin Application has already been started")
         }
 
         koinApp = koinApplication

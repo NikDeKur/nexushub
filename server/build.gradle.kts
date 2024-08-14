@@ -56,8 +56,6 @@ val javaVersion = JavaVersion.VERSION_11
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
-    withJavadocJar()
-    withSourcesJar()
 }
 
 
@@ -82,12 +80,6 @@ tasks.withType<KotlinCompile> {
 tasks.withType<ShadowJar> {
     archiveClassifier.set("")
     archiveFileName.set("${project.name}-${project.version}.jar")
-
-    // Include all output directories and runtime classpath from all subprojects
-    allprojects.forEach { project ->
-        from(project.sourceSets.main.get().output)
-        configurations.add(project.configurations.runtimeClasspath.get())
-    }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

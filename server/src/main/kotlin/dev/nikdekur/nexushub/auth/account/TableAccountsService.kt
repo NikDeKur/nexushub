@@ -8,19 +8,28 @@
 
 package dev.nikdekur.nexushub.auth.account
 
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.auth.password.PasswordEncryptor
 import dev.nikdekur.nexushub.database.account.AccountDAO
 import dev.nikdekur.nexushub.database.account.AccountsTable
+import dev.nikdekur.nexushub.database.mongo.MongoAccountsTable
+import dev.nikdekur.nexushub.database.mongo.MongoDatabase
+import dev.nikdekur.nexushub.database.mongo.ensureCollectionExists
+import dev.nikdekur.nexushub.database.mongo.indexOptions
+import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.bson.Document
 import java.util.concurrent.ConcurrentHashMap
 
-class AccountsServiceImpl(
-    val table: AccountsTable
-) : AccountsService {
+class TableAccountsService(
+    override val app: NexusHubServer,
+    val database: MongoDatabase
+) : NexusHubService, AccountsService {
 
+    lateinit var table: AccountsTable
 
     override fun getAccounts(): Collection<Account> {
         return accounts.values
@@ -29,16 +38,28 @@ class AccountsServiceImpl(
     val accounts = ConcurrentHashMap<String, Account>()
 
 
-    init {
-        runBlocking {
-            table.fetchAllAccounts().forEach {
-                val account = it.toHighLevel()
-                accounts[account.login] = account
+    override fun onLoad(): Unit = runBlocking {
+        table = MongoAccountsTable(
+            database.database.ensureCollectionExists<AccountDAO>("accounts") {
+                val indexOptions = indexOptions {
+                    unique(true)
+                }
+
+                createIndex(Document("login", 1), indexOptions)
             }
-            table
+        )
+
+        table.fetchAllAccounts().forEach {
+            val account = it.toHighLevel()
+            accounts[account.login] = account
         }
+
+        table
     }
 
+    override fun onUnload() {
+        accounts.clear()
+    }
 
 
 

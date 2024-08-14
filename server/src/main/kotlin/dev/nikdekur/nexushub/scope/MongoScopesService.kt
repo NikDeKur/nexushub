@@ -8,34 +8,48 @@
 
 package dev.nikdekur.nexushub.scope
 
-import dev.nikdekur.nexushub.config.NexusHubServerConfig
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.database.mongo.MongoDatabase
 import dev.nikdekur.nexushub.database.mongo.ensureCollectionExists
 import dev.nikdekur.nexushub.database.mongo.indexOptions
 import dev.nikdekur.nexushub.database.mongo.scope.MongoScopeTable
+import dev.nikdekur.nexushub.database.mongo.scope.MongoScopesTable
 import dev.nikdekur.nexushub.database.scope.ScopeDAO
 import dev.nikdekur.nexushub.database.scope.ScopesTable
-import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.bson.Document
-import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 
 class MongoScopesService(
-    val database: MongoDatabase,
-    val scopesTable: ScopesTable
-) : ScopesService, NexusHubComponent {
-
-    val config: NexusHubServerConfig by inject()
+    override val app: NexusHubServer,
+    val database: MongoDatabase
+) : NexusHubService, ScopesService {
 
     val scopes = ConcurrentHashMap<String, Scope>()
+    lateinit var table: ScopesTable
 
-    init {
+    override fun onLoad() {
         runBlocking {
+            val collection = database.database.ensureCollectionExists<ScopeDAO>("scopes") {
+                val indexOptions = indexOptions {
+                    unique(true)
+                }
+
+                createIndex(Document("name", 1), indexOptions)
+            }
+
+            table = MongoScopesTable(collection)
+
             reloadScopes()
         }
     }
+
+    override fun onUnload() {
+        scopes.clear()
+    }
+
 
     override suspend fun reloadScopes() {
         scopes.clear()
@@ -88,18 +102,18 @@ class MongoScopesService(
 
 
     override suspend fun createScopeData(data: ScopeDAO) {
-        scopesTable.createScope(data)
+        table.createScope(data)
     }
 
     override suspend fun findScopeData(scopeId: String): ScopeDAO? {
-        return scopesTable.findScope(scopeId)
+        return table.findScope(scopeId)
     }
 
     override suspend fun updateScopeData(data: ScopeDAO) {
-        scopesTable.updateScope(data)
+        table.updateScope(data)
     }
 
     override suspend fun deleteScopeData(scopeId: String) {
-        scopesTable.deleteScope(scopeId)
+        table.deleteScope(scopeId)
     }
 }

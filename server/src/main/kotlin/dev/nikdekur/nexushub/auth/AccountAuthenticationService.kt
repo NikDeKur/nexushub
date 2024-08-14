@@ -9,21 +9,24 @@
 package dev.nikdekur.nexushub.auth
 
 import dev.nikdekur.ndkore.ext.info
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.auth.password.PasswordEncryptor
-import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.node.ClientNode
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.packet.Packet
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
 import kotlinx.coroutines.delay
 import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
-class AccountAuthenticationService : AuthenticationService, NexusHubComponent {
+class AccountAuthenticationService(
+    override val app: NexusHubServer
+) : NexusHubService, AuthenticationService {
 
     val logger = LoggerFactory.getLogger(javaClass)
 

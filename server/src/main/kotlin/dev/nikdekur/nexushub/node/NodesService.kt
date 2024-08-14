@@ -9,29 +9,49 @@
 package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
+import dev.nikdekur.ndkore.service.Dependencies
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
-import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.network.talker.Talker
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.util.CloseCode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 
-class NodesService : NexusHubComponent {
+class NodesService(
+    override val app: NexusHubServer
+) : NexusHubService {
+
+    // Specify it as last, to be first for unloading
+    // We have to close all nodes before unloading other services
+    override val dependencies = Dependencies.last()
 
     val config: NexusHubServerConfig by inject()
 
-    init {
+    lateinit var scope: CoroutineScheduler
+
+    override fun onLoad() {
+        scope = CoroutineScheduler.fromSupervisor(Dispatchers.Default)
         val config = config.network.ping
         val interval = config.interval * 1000L
         val deadInterval = interval + config.extraInterval
 
-        // ToDo: Go away from GlobalScope
-        CoroutineScheduler.Global.runTaskTimer(interval) {
+        scope.runTaskTimer(interval) {
             connectedNodes.values.forEach { node ->
                 if (node.isAlive(deadInterval)) return@forEach
                 node.close(CloseCode.PING_FAILED, "Ping failed")
             }
         }
+    }
+
+    override fun onUnload() {
+        runBlocking {
+            closeAll(CloseCode.SHUTDOWN, "Server is shutting down")
+        }
+        scope.cancel()
     }
 
     val connectedNodes = ConcurrentHashMap<String, ClientNode>()

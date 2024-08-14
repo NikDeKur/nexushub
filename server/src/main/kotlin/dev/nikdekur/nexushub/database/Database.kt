@@ -8,10 +8,12 @@
 
 package dev.nikdekur.nexushub.database
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 
 interface Database {
 
+    val scope: CoroutineScope
     fun getAllCollectionsNames(): Flow<String>
 
 }

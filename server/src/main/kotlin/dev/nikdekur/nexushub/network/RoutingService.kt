@@ -14,7 +14,6 @@ import dev.nikdekur.nexushub.auth.AuthenticationService
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
 import dev.nikdekur.nexushub.http.HTTPAuthService
-import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.modal.Account
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
@@ -31,6 +30,7 @@ import dev.nikdekur.nexushub.packet.PacketOk
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
 import dev.nikdekur.nexushub.packet.`in`.PacketHello
 import dev.nikdekur.nexushub.packet.out.PacketReady
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.KtorClientTalker
 import dev.nikdekur.nexushub.talker.TalkersService
 import dev.nikdekur.nexushub.util.CloseCode
@@ -66,7 +66,7 @@ suspend fun ApplicationCall.respondHtml(status: HttpStatusCode = HttpStatusCode.
     respond(HtmlContent(status, block))
 }
 
-class Routing : NexusHubComponent {
+class Routing : NexusHubService {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
@@ -77,8 +77,15 @@ class Routing : NexusHubComponent {
     val nodesService: NodesService by inject()
     val accountsService: AccountsService by inject()
 
-    val processingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    lateinit var processingScope: CoroutineScope
 
+    override fun onLoad() {
+        processingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    }
+
+    override fun onUnload() {
+        processingScope.cancel()
+    }
 
 
 

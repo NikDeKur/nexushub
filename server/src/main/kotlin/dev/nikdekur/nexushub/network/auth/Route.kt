@@ -8,9 +8,9 @@
 
 package dev.nikdekur.nexushub.network.auth
 
-import io.ktor.server.routing.Route
 import io.ktor.server.routing.RouteSelector
 import io.ktor.server.routing.RouteSelectorEvaluation
+import io.ktor.server.routing.Routing
 import io.ktor.server.routing.RoutingResolveContext
 
 class AuthenticationRouteSelector : RouteSelector() {
@@ -21,7 +21,7 @@ class AuthenticationRouteSelector : RouteSelector() {
     override fun toString(): String = "AuthenticationRouteSelector"
 }
 
-fun Route.authenticate(build: Route.() -> Unit): Route {
+fun Routing.authenticate(build: Routing.() -> Unit): Routing {
     val route = createChild(AuthenticationRouteSelector())
     route.install(TokenAuthenticationPlugin)
     route.build()

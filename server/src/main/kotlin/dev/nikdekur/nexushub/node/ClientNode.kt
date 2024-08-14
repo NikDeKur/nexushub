@@ -13,6 +13,7 @@ package dev.nikdekur.nexushub.node
 import dev.nikdekur.ndkore.ext.isBlankOrEmpty
 import dev.nikdekur.ndkore.`interface`.Snowflake
 import dev.nikdekur.nexushub.auth.account.Account
+import dev.nikdekur.nexushub.database.Database
 import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.packet.*
@@ -38,7 +39,6 @@ import dev.nikdekur.nexushub.talker.TalkersService
 import dev.nikdekur.nexushub.util.CloseCode
 import dev.nikdekur.nexushub.util.GsonSupport
 import dev.nikdekur.nexushub.util.NexusData
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import org.koin.core.component.inject
@@ -51,6 +51,7 @@ class ClientNode(
     val account: Account,
 ) : Snowflake<String>, ClientTalker by talker, NexusHubComponent {
 
+    val database: Database by inject()
     val scopesService: ScopesService by inject()
     val sessionsService: SessionsService by inject()
     val talkersService: TalkersService by inject()
@@ -196,6 +197,7 @@ class ClientNode(
         context.respond<Unit>(PacketOk("Data saved"))
     }
 
+
     suspend fun saveBatchDataSafe(scope: Scope, holderToData: Map<String, String>) {
         holderToData.mapNotNull {
             val holderId = it.key
@@ -214,8 +216,7 @@ class ClientNode(
                 if (data.isEmpty())
                     return@mapNotNull null
 
-                // ToDo: Stop using GlobalScope
-                GlobalScope.async {
+                database.scope.async {
                     scope.setData(holderId, data)
                 }
             } catch (_: Exception) {

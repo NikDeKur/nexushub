@@ -9,6 +9,7 @@
 package dev.nikdekur.nexushub
 
 import dev.nikdekur.ndkore.`interface`.Snowflake
+import dev.nikdekur.ndkore.service.ServicesManager
 import org.slf4j.Logger
 import kotlin.time.Duration
 
@@ -23,6 +24,11 @@ interface NexusHubServer : Snowflake<String> {
      * The logger for the server.
      */
     val logger: Logger
+
+    /**
+     * The services manager for the server.
+     */
+    val servicesManager: ServicesManager<NexusHubServer>
 
     /**
      * The uptime of the server.

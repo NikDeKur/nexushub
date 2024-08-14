@@ -10,26 +10,41 @@ package dev.nikdekur.nexushub.session
 
 import dev.nikdekur.ndkore.map.multi.ConcurrentMultiHashMap
 import dev.nikdekur.ndkore.map.set.ConcurrentSetsHashMap
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
-import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.node.ClientNode
 import dev.nikdekur.nexushub.scope.Scope
+import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import org.koin.core.component.inject
 
-class RuntimeSessionsService : SessionsService, NexusHubComponent {
+class RuntimeSessionsService(
+    override val app: NexusHubServer
+) : NexusHubService, SessionsService {
 
     val config by inject<NexusHubServerConfig>()
 
+    lateinit var syncingScope: CoroutineScope
+
+    override fun onLoad() {
+        syncingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    }
+
+    override fun onUnload() {
+        syncingScope.cancel()
+        sessions.clear()
+        nodeToSessions.clear()
+        scopeToNodes.clear()
+    }
+
     //                                    scope   holder
     val sessions = ConcurrentMultiHashMap<String, String, Session>()
-
-    //                                          node   session
     val nodeToSessions = ConcurrentSetsHashMap<String, Session>()
-
     val scopeToNodes = ConcurrentSetsHashMap<String, ClientNode>()
 
     override fun getExistingSession(scopeId: String, holderId: String): Session? {
@@ -65,7 +80,6 @@ class RuntimeSessionsService : SessionsService, NexusHubComponent {
         return nodeToSessions.contains(node.id)
     }
 
-    val syncingScope = CoroutineScope(Dispatchers.IO)
 
     override suspend fun requestSync(scope: Scope) {
         val nodes = scopeToNodes[scope.id]

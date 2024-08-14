@@ -12,16 +12,14 @@ package dev.nikdekur.nexushub.database.mongo.scope
 
 import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
+import dev.nikdekur.nexushub.database.Database
 import dev.nikdekur.nexushub.database.mongo.indexOptions
 import dev.nikdekur.nexushub.database.scope.ScopeDAO
 import dev.nikdekur.nexushub.database.scope.ScopeTable
 import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.scope.ScopesService
 import dev.nikdekur.nexushub.util.NexusData
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -39,6 +37,7 @@ class MongoScopeTable(
     override var data: ScopeDAO
 ) : ScopeTable, NexusHubComponent {
 
+    val database: Database by inject()
     val scopesService: ScopesService by inject()
 
     val logger = LoggerFactory.getLogger("ScopeCollection")
@@ -127,12 +126,10 @@ class MongoScopeTable(
 
 
 
-    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
     private inline fun ensureIndexAsync(field: String): Job? {
         if (data.indexes.contains(field)) return null
 
-        return scope.launch {
+        return database.scope.launch {
             // Update scope in another coroutine to avoid blocking
             data = data.copy(indexes = data.indexes + field)
             createIndex(field, false)

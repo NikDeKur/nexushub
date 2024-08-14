@@ -10,26 +10,31 @@
 
 package dev.nikdekur.nexushub
 
-import dev.nikdekur.ndkore.ext.addBlockingShutdownHook
+import dev.nikdekur.ndkore.ext.addShutdownHook
+import dev.nikdekur.ndkore.service.KoinServicesManager
 import dev.nikdekur.nexushub.auth.AccountAuthenticationService
 import dev.nikdekur.nexushub.auth.AuthenticationService
+import dev.nikdekur.nexushub.auth.account.AccountsService
+import dev.nikdekur.nexushub.auth.account.TableAccountsService
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
 import dev.nikdekur.nexushub.database.Database
 import dev.nikdekur.nexushub.database.mongo.MongoDatabase
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.http.session.HTTPSessionAuthService
 import dev.nikdekur.nexushub.koin.NexusHubKoinContext
-import dev.nikdekur.nexushub.koin.getKoin
 import dev.nikdekur.nexushub.koin.loadModule
 import dev.nikdekur.nexushub.network.Routing
 import dev.nikdekur.nexushub.node.NodesService
+import dev.nikdekur.nexushub.scope.MongoScopesService
+import dev.nikdekur.nexushub.scope.ScopesService
+import dev.nikdekur.nexushub.service.SetupService
 import dev.nikdekur.nexushub.session.RuntimeSessionsService
 import dev.nikdekur.nexushub.session.SessionsService
 import dev.nikdekur.nexushub.talker.RuntimeTalkersService
 import dev.nikdekur.nexushub.talker.TalkersService
-import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.serialization.decodeFromString
 import net.mamoe.yamlkt.Yaml
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
@@ -37,8 +42,6 @@ import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.openssl.PEMParser
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
-import org.koin.core.module.dsl.singleOf
-import org.koin.dsl.bind
 import org.koin.environmentProperties
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -59,11 +62,14 @@ class KtorNexusHubServer : NexusHubServer {
 
     override val logger = LoggerFactory.getLogger(javaClass)
 
+    override val servicesManager = KoinServicesManager<NexusHubServer>(NexusHubKoinContext, this)
+
     var startTime by Delegates.notNull<Long>()
 
     override val uptime: Duration
         get() = (System.currentTimeMillis() - startTime).milliseconds
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun start(args: Array<String>) {
         startTime = System.currentTimeMillis()
         val configPath = args.getOrElse(0) { "config.yml" }
@@ -106,55 +112,44 @@ class KtorNexusHubServer : NexusHubServer {
 
         startKoin()
 
+
+        servicesManager.apply {
+            val server = this@KtorNexusHubServer
+
+            val db = MongoDatabase(server)
+            registerService(db, Database::class)
+            registerService(MongoScopesService(server, db), ScopesService::class)
+            registerService(TableAccountsService(server, db), AccountsService::class)
+
+            registerService(NodesService(server), NodesService::class)
+            registerService(RuntimeSessionsService(server), SessionsService::class)
+            registerService(RuntimeTalkersService(server), TalkersService::class)
+            registerService(AccountAuthenticationService(server), AuthenticationService::class)
+            registerService(HTTPSessionAuthService(server), HTTPAuthService::class)
+
+            registerService(SetupService(server))
+        }
+
+
         loadModule {
-            single { this@KtorNexusHubServer }
             single { config }
         }
 
+        Routing().init(server.application)
 
-        loadModule {
-            singleOf(::MongoDatabase) bind Database::class
-        }
+        addShutdownHook {
 
-        loadModule {
-            singleOf(::NodesService)
-        }
-
-        loadModule {
-            singleOf(::RuntimeSessionsService) bind SessionsService::class
-        }
-
-        loadModule {
-            singleOf(::RuntimeTalkersService) bind TalkersService::class
-        }
-
-        loadModule {
-            singleOf(::AccountAuthenticationService) bind AuthenticationService::class
-        }
-
-        loadModule {
-            singleOf(::HTTPSessionAuthService) bind HTTPAuthService::class
-        }
-
-        loadModule(true) {
-            single {
-                Routing().also {
-                    it.init(server.application)
-                }
-            }
-        }
-
-        getKoin().get<Routing>()
-        getKoin().get<MongoDatabase>()
-
-        addBlockingShutdownHook {
-            logger.info("Disconnecting active nodes...")
-            getKoin().get<NodesService>().closeAll(CloseCode.SHUTDOWN, "Server is shutting down")
+            logger.info("Unloading services...")
+            servicesManager.unloadAll()
 
             logger.info("Shutting down ktor server...")
-            logger.info("This may take nearly 10 seconds to perform graceful shutdown")
-            server.stop(5000, 5000)
+            logger.info("This may take a few seconds...")
+            val config = config.network.shutdown
+            server.stop(config.gracePeriod, config.timeout, config.unit)
         }
+
+        logger.info("Loading services...")
+        servicesManager.loadAll()
 
         logger.info("Starting ktor server...")
         server.start(true)
