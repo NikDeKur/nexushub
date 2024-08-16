@@ -10,6 +10,8 @@
 
 package dev.nikdekur.nexushub
 
+import com.charleskorn.kaml.Yaml
+import com.charleskorn.kaml.YamlConfiguration
 import dev.nikdekur.ndkore.ext.addShutdownHook
 import dev.nikdekur.ndkore.service.KoinServicesManager
 import dev.nikdekur.nexushub.auth.AccountAuthenticationService
@@ -25,6 +27,8 @@ import dev.nikdekur.nexushub.koin.NexusHubKoinContext
 import dev.nikdekur.nexushub.koin.loadModule
 import dev.nikdekur.nexushub.network.Routing
 import dev.nikdekur.nexushub.node.NodesService
+import dev.nikdekur.nexushub.protection.ProtectionService
+import dev.nikdekur.nexushub.protection.argon2.Argon2ProtectionService
 import dev.nikdekur.nexushub.scope.MongoScopesService
 import dev.nikdekur.nexushub.scope.ScopesService
 import dev.nikdekur.nexushub.service.SetupService
@@ -36,7 +40,6 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.serialization.decodeFromString
-import net.mamoe.yamlkt.Yaml
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
@@ -78,8 +81,16 @@ class KtorNexusHubServer : NexusHubServer {
             throw Exception("Config file not found! ")
         }
 
+        val yaml by lazy {
+            Yaml(
+                configuration = YamlConfiguration(
+                    strictMode = false
+                )
+            )
+        }
+
         config = configFile.readText().let {
-            Yaml.decodeFromString<NexusHubServerConfig>(it)
+            yaml.decodeFromString<NexusHubServerConfig>(it)
         }
         val networkConfig = config.network
         val ssl = networkConfig.ssl
@@ -121,21 +132,20 @@ class KtorNexusHubServer : NexusHubServer {
             registerService(MongoScopesService(server, db), ScopesService::class)
             registerService(TableAccountsService(server, db), AccountsService::class)
 
+            registerService(Argon2ProtectionService(server), ProtectionService::class)
             registerService(NodesService(server), NodesService::class)
             registerService(RuntimeSessionsService(server), SessionsService::class)
             registerService(RuntimeTalkersService(server), TalkersService::class)
             registerService(AccountAuthenticationService(server), AuthenticationService::class)
             registerService(HTTPSessionAuthService(server), HTTPAuthService::class)
+            registerService(Routing(server, this@KtorNexusHubServer.server.application), Routing::class)
 
             registerService(SetupService(server))
         }
 
-
         loadModule {
             single { config }
         }
-
-        Routing().init(server.application)
 
         addShutdownHook {
 

@@ -11,6 +11,7 @@ package dev.nikdekur.nexushub.root
 import dev.nikdekur.nexushub.modal.Account
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
+import dev.nikdekur.nexushub.modal.`in`.AccountPasswordRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesListRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesUpdateRequest
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
@@ -113,6 +114,10 @@ class NexusHubRootRequester(
         request(RootPaths.DELETE_ACCOUNT, request)
     }
 
+    suspend fun changeAccountPassword(login: String, password: String) {
+        val request = AccountPasswordRequest(login, password)
+        request(RootPaths.CHANGE_ACCOUNT_PASSWORD, request)
+    }
 
 
 

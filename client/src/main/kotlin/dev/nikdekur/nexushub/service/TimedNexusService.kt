@@ -19,8 +19,9 @@ import kotlin.time.Duration
 abstract class TimedNexusService<H, S : ScopeData<S>>(
     val scheduler: Scheduler,
     hub: NexusHub,
-    val sessionLiveTime: Duration
-) : AbstractNexusService<H, S>(hub) {
+    val sessionLiveTime: Duration,
+    scope: String
+) : AbstractNexusService<H, S>(hub, scope) {
 
     val sessionLiveTimeMs = sessionLiveTime.inWholeMilliseconds
     val tasks = ConcurrentHashMap<String, SchedulerTask>()

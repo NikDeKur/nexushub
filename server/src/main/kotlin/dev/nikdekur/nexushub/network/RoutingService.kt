@@ -8,8 +8,9 @@
 
 package dev.nikdekur.nexushub.network
 
-import dev.nikdekur.ndkore.ext.debug
+import dev.nikdekur.ndkore.ext.log
 import dev.nikdekur.ndkore.ext.warn
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.AuthenticationService
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.config.NexusHubServerConfig
@@ -17,6 +18,7 @@ import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.modal.Account
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
+import dev.nikdekur.nexushub.modal.`in`.AccountPasswordRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesListRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesUpdateRequest
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
@@ -34,10 +36,10 @@ import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.KtorClientTalker
 import dev.nikdekur.nexushub.talker.TalkersService
 import dev.nikdekur.nexushub.util.CloseCode
-import io.ktor.html.HtmlContent
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
+import io.ktor.server.html.respondHtml
 import io.ktor.server.plugins.*
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
@@ -53,20 +55,19 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
-import kotlinx.html.HTML
 import kotlinx.html.body
 import kotlinx.html.p
 import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import java.time.Duration
 import java.util.*
 import kotlin.time.Duration.Companion.seconds
 
-suspend fun ApplicationCall.respondHtml(status: HttpStatusCode = HttpStatusCode.OK, block: HTML.() -> Unit) {
-    respond(HtmlContent(status, block))
-}
-
-class Routing : NexusHubService {
+class Routing(
+    override val app: NexusHubServer,
+    val application: Application
+) : NexusHubService {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
@@ -81,6 +82,7 @@ class Routing : NexusHubService {
 
     override fun onLoad() {
         processingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        init()
     }
 
     override fun onUnload() {
@@ -90,7 +92,7 @@ class Routing : NexusHubService {
 
 
 
-    fun init(application: Application) {
+    fun init() {
         logger.info("Initializing routing")
 
         application.install(WebSockets) {
@@ -181,6 +183,17 @@ class Routing : NexusHubService {
                         call.respondText("Success")
                     }
 
+                    post("password") {
+                        val request = call.receive<AccountPasswordRequest>()
+                        val login = request.login
+                        val account = accountsService.getAccount(login) ?: run {
+                            call.respondText("Account '$login' not found")
+                            return@post
+                        }
+                        val newPassword = request.newPassword
+                        account.changePassword(newPassword)
+                        call.respondText("Success")
+                    }
 
 
                     route("scopes") {
@@ -275,7 +288,8 @@ class Routing : NexusHubService {
                     processingScope.launch {
                         val context = talker.receive(frame.readBytes()) ?: return@launch
 
-                        logger.debug { "[$addressStr] Received packet: ${context.packet}" }
+                        val level = if (context.packet is PacketAuth) Level.TRACE else Level.DEBUG
+                        logger.log(level) { "[$addressStr] Received packet: ${context.packet}" }
 
                         try {
                             authService.executeAuthenticatedPacket(talker, context)

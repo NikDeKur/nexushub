@@ -8,19 +8,19 @@
 
 package dev.nikdekur.nexushub.auth
 
+import dev.nikdekur.ndkore.ext.delay
 import dev.nikdekur.ndkore.ext.info
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.AccountsService
-import dev.nikdekur.nexushub.auth.password.PasswordEncryptor
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.node.ClientNode
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.packet.Packet
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
+import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
-import kotlinx.coroutines.delay
 import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
@@ -31,6 +31,7 @@ class AccountAuthenticationService(
     val logger = LoggerFactory.getLogger(javaClass)
 
     val nodesService: NodesService by inject()
+    val protectionService: ProtectionService by inject()
     val accountsService: AccountsService by inject()
 
     override suspend fun executeAuthenticatedPacket(talker: ClientTalker, context: IncomingContext<Packet>) {
@@ -51,7 +52,7 @@ class AccountAuthenticationService(
         if (account == null) {
             // Imitate hashing delay to hacker think login exists
             logger.info { "Account not found: ${packet.login}" }
-            delay(PasswordEncryptor.averageHashTime())
+            delay(protectionService.averageEncryptionTime())
             talker.closeWithBlock(CloseCode.WRONG_CREDENTIALS)
             return
         }

@@ -8,23 +8,31 @@
 
 package dev.nikdekur.nexushub.auth.account
 
-import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.database.account.AccountDAO
 import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.nexushub.protection.Password
+import dev.nikdekur.nexushub.protection.ProtectionService
 import org.koin.core.component.inject
 
 data class Account(
     var dao: AccountDAO,
-    val login: String,
-    val password: EncryptedPassword,
+    var password: Password,
     private val _allowedScopes: MutableSet<String>
 ) : NexusHubComponent {
 
+    val login get() = dao.login
+
+    val protectionService: ProtectionService by inject()
     val accountsService: AccountsService by inject()
 
     val allowedScopes: Set<String>
         get() = _allowedScopes
 
+    suspend fun changePassword(newPassword: String) {
+        password = protectionService.createPassword(newPassword)
+        dao = dao.copy(password = password.serialize())
+        accountsService.updateAccount(dao)
+    }
 
     suspend fun updateScopes() {
         dao = dao.copy(allowedScopes = allowedScopes)

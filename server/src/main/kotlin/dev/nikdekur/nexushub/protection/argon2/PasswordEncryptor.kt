@@ -8,7 +8,7 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.auth.password
+package dev.nikdekur.nexushub.protection.argon2
 
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
@@ -27,18 +27,18 @@ object PasswordEncryptor {
     // 320 MB in KB terms
     const val PASSWORD_MEMORY = 320 * 1024
 
-    const val AVERAGE_HASH_TIME_MS = 1200L
-    const val AVERAGE_HASH_TIME_RANGE = 1200 / 100 * 15 // 15% range
+    const val AVERAGE_HASH_TIME_MS = 1200
+    const val AVERAGE_HASH_TIME_RANGE = AVERAGE_HASH_TIME_MS / 100 * 15 // 15% range
 
-    fun averageHashTime(): Long {
+    fun averageHashTime(): Int {
         return AVERAGE_HASH_TIME_MS + Random.nextInt(-AVERAGE_HASH_TIME_RANGE, AVERAGE_HASH_TIME_RANGE)
     }
 
-    fun encryptNew(password: String): EncryptedPassword {
+    fun encryptNew(password: String): Argon2Password {
         return encrypt(password, newSalt())
     }
 
-    fun encrypt(password: String, salt: Salt): EncryptedPassword {
+    fun encrypt(password: String, salt: Salt): Argon2Password {
         val builder = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
             .withVersion(Argon2Parameters.ARGON2_VERSION_13) // 19
             .withIterations(OPERATIONS)
@@ -52,7 +52,7 @@ object PasswordEncryptor {
 
         val result = ByteArray(CASH_LENGTH)
         argon2.generateBytes(password.encodeToByteArray(), result, 0, result.size)
-        return EncryptedPassword(result, salt)
+        return Argon2Password(result, salt)
     }
 
 
@@ -68,12 +68,12 @@ object PasswordEncryptor {
     }
 }
 
-@ExperimentalStdlibApi
+@OptIn(ExperimentalStdlibApi::class)
 inline fun ByteArray.toHEX(): String {
     return toHexString(HexFormat.Default)
 }
 
-@ExperimentalStdlibApi
+@OptIn(ExperimentalStdlibApi::class)
 inline fun String.fromHEX(): ByteArray {
     return hexToByteArray(HexFormat.Default)
 }

@@ -121,16 +121,12 @@ class ClientNode(
 
         val session = sessionsService.getExistingSession(scopeId, holderId)
         val createSession = session?.let {
-            logger.info("Session already exists for $holderId in $scopeId.")
             val node = it.node
             if (node != this) {
-                logger.info("Session is not for this node. Requesting sync and stopping session...")
+                logger.info("Session already exists for $holderId in $scopeId. Requesting sync and stopping session...")
                 node.requestHolderSyncAndStopSession(scope, holderId)
                 true
-            } else {
-                logger.info("Session is for this node. Don't worry about it.")
-                false
-            }
+            } else false
         } != false
 
         if (createSession) {

@@ -12,6 +12,7 @@ package dev.nikdekur.nexushub.root
 
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
+import dev.nikdekur.nexushub.modal.`in`.AccountPasswordRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesListRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesUpdateRequest
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
@@ -31,6 +32,7 @@ object RootPaths {
     val LIST_ACCOUNTS = path<Unit, AccountsListResponse>("accounts/list")
     val CREATE_ACCOUNT = path<AccountCreateRequest, Unit>("accounts/create")
     val DELETE_ACCOUNT = path<AccountDeleteRequest, Unit>("accounts/delete")
+    val CHANGE_ACCOUNT_PASSWORD = path<AccountPasswordRequest, Unit>("accounts/password")
 
     val LIST_ACCOUNT_SCOPES = path<AccountScopesListRequest, AccountScopesListResponse>("accounts/scopes/list")
     val UPDATE_ACCOUNT_SCOPES = path<AccountScopesUpdateRequest, Unit>("accounts/scopes/update")

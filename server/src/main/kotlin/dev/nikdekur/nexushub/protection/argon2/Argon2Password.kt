@@ -8,28 +8,36 @@
 
 @file:OptIn(ExperimentalStdlibApi::class)
 
-package dev.nikdekur.nexushub.auth.password
+package dev.nikdekur.nexushub.protection.argon2
+
+import dev.nikdekur.nexushub.protection.Password
 
 
-data class EncryptedPassword(
+data class Argon2Password(
     val byte: ByteArray,
     val salt: Salt,
-) {
+) : Password {
 
     val hex = byte.toHEX()
 
-    fun isEqual(password: String): Boolean {
+    override fun isEqual(password: String): Boolean {
         val encrypted = PasswordEncryptor.encrypt(password, salt)
         return encrypted == this
+    }
+
+    override fun serialize(): String {
+        val hexStr = hex.toString()
+        val saltStr = salt.hex.toString()
+        return "$hexStr:$saltStr"
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as EncryptedPassword
+        other as Argon2Password
 
-        return byte.contentEquals(other.byte)
+        return byte.contentEquals(other.byte) && salt == other.salt
     }
 
     override fun hashCode(): Int {

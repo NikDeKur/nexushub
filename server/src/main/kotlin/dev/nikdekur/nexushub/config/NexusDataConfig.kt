@@ -10,13 +10,13 @@
 
 package dev.nikdekur.nexushub.config
 
+import com.charleskorn.kaml.YamlComment
 import kotlinx.serialization.Serializable
-import net.mamoe.yamlkt.Comment
 
 @Serializable
 data class NexusDataConfig(
-    @Comment("Interval to clear cached holder data after write/access (in seconds)")
+    @YamlComment("Interval to clear cached holder data after write/access (in seconds)")
     val cache_expiration: Long = 300,
-    @Comment("Maximum number of cached holder data by each scope")
+    @YamlComment("Maximum number of cached holder data by each scope")
     val cache_max_size: Long = 1000,
 )

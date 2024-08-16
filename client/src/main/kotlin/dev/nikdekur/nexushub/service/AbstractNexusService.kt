@@ -31,7 +31,8 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 abstract class AbstractNexusService<H, S : ScopeData<S>>(
-    override val hub: NexusHub
+    override val hub: NexusHub,
+    override val scope: String
 ) : NexusService<H, S> {
 
     val logger = LoggerFactory.getLogger("NexusHub-$scope")

@@ -8,8 +8,8 @@
 
 package dev.nikdekur.nexushub.auth.account
 
-import dev.nikdekur.nexushub.auth.password.EncryptedPassword
 import dev.nikdekur.nexushub.database.account.AccountDAO
+import dev.nikdekur.nexushub.protection.Password
 
 interface AccountsService {
 
@@ -33,6 +33,6 @@ interface AccountsService {
     suspend fun deleteAccount(login: String)
 
 
-    suspend fun matchPassword(pass1: EncryptedPassword, pass2: String): Boolean
+    suspend fun matchPassword(pass1: Password, pass2: String): Boolean
 
 }

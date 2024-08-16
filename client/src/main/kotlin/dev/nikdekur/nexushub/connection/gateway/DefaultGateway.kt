@@ -23,7 +23,6 @@ import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.*
-import io.ktor.http.*
 import io.ktor.websocket.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
@@ -107,12 +106,7 @@ class DefaultGateway(
             logger.info("Connecting to NexusHub...")
 
             val socket = try {
-                client.webSocketSession(
-                    HttpMethod.Get,
-                    host = data.host,
-                    port = data.port,
-                    path = "/connection",
-                )
+                client.webSocketSession(data.url)
             } catch (e: Exception) {
                 if (e is UnresolvedAddressException) {
                     data.eventFlow.emit(Close.Timeout)

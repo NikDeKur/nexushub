@@ -9,25 +9,28 @@
 package dev.nikdekur.nexushub.auth.account
 
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.auth.password.EncryptedPassword
-import dev.nikdekur.nexushub.auth.password.PasswordEncryptor
 import dev.nikdekur.nexushub.database.account.AccountDAO
 import dev.nikdekur.nexushub.database.account.AccountsTable
 import dev.nikdekur.nexushub.database.mongo.MongoAccountsTable
 import dev.nikdekur.nexushub.database.mongo.MongoDatabase
 import dev.nikdekur.nexushub.database.mongo.ensureCollectionExists
 import dev.nikdekur.nexushub.database.mongo.indexOptions
+import dev.nikdekur.nexushub.protection.Password
+import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.bson.Document
+import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 
 class TableAccountsService(
     override val app: NexusHubServer,
     val database: MongoDatabase
 ) : NexusHubService, AccountsService {
+
+    val protectionService: ProtectionService by inject()
 
     lateinit var table: AccountsTable
 
@@ -49,12 +52,7 @@ class TableAccountsService(
             }
         )
 
-        table.fetchAllAccounts().forEach {
-            val account = it.toHighLevel()
-            accounts[account.login] = account
-        }
-
-        table
+        table.fetchAllAccounts().forEach(::registerAccount)
     }
 
     override fun onUnload() {
@@ -67,15 +65,20 @@ class TableAccountsService(
         return accounts[login]
     }
 
+    fun registerAccount(dao: AccountDAO): Account {
+        val password = protectionService.deserializePassword(dao.password)
+        return Account(dao, password, dao.allowedScopes.toMutableSet()).also {
+            accounts[dao.login] = it
+        }
+    }
+
     override suspend fun updateAccount(dao: AccountDAO) {
         table.updateAccount(dao)
     }
 
     suspend fun createAccount(dao: AccountDAO): Account {
         table.newAccount(dao)
-        val account = dao.toHighLevel()
-        accounts[account.login] = account
-        return account
+        return registerAccount(dao)
     }
 
     override suspend fun createAccount(
@@ -84,11 +87,10 @@ class TableAccountsService(
         allowedScopes: Set<String>
     ): Account {
         require(getAccount(login) == null) { "Account with login \"$login\" already exists" }
-        val encryptedPassword = PasswordEncryptor.encryptNew(password)
+        val password = protectionService.createPassword(password)
         val dao = AccountDAO(
             login = login,
-            password = encryptedPassword.hex,
-            salt = encryptedPassword.salt.hex,
+            password = password.serialize(),
             allowedScopes = allowedScopes
         )
         return createAccount(dao)
@@ -110,7 +112,8 @@ class TableAccountsService(
 
 
     val encryptingDispatcher = Dispatchers.Default
-    override suspend fun matchPassword(real: EncryptedPassword, test: String): Boolean {
+
+    override suspend fun matchPassword(real: Password, test: String): Boolean {
         return withContext(encryptingDispatcher) {
             real.isEqual(test)
         }

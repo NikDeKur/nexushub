@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "dev.nikdekur.nexushub"
-version = "1.1.0"
+version = "1.2.0"
 
 val authorId: String by project
 val authorName: String by project
@@ -38,12 +38,12 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.websockets)
     implementation(libs.ktor.server.content.negotiation)
-    implementation(libs.ktor.html.builder)
+    implementation(libs.ktor.server.html.builder)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.gson)
     implementation(libs.ndkore)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.yamlkt)
+    implementation(libs.kaml)
     implementation(libs.mongodb)
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)
@@ -82,4 +82,6 @@ tasks.withType<ShadowJar> {
     archiveFileName.set("${project.name}-${project.version}.jar")
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    destinationDirectory.set(file("jars"))
 }
