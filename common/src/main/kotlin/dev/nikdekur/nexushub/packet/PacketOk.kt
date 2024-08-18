@@ -18,6 +18,7 @@ class PacketOk : Packet {
     override val packetId = OK.id
 
     var message: String = ""
+
     constructor()
     constructor(message: String) {
         this.message = message

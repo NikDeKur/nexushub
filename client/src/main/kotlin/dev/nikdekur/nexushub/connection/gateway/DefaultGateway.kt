@@ -17,6 +17,7 @@ import dev.nikdekur.nexushub.event.Close
 import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.event.NetworkEvent
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
+import dev.nikdekur.nexushub.network.talker.sendPacket
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.*
 import dev.nikdekur.nexushub.util.CloseCode
@@ -74,7 +75,10 @@ class DefaultGateway(
 
     var state by atomic<State>(State.Stopped)
 
-    override suspend fun <R> sendPacket(packet: Packet, block: PacketReaction.Builder<R>.() -> Unit): PacketTransmission<R> {
+    override suspend fun <R> sendPacket(
+        packet: Packet,
+        block: PacketReaction.Builder<R>.() -> Unit
+    ): PacketTransmission<R> {
         check(state != State.Detached) { "The resources of this gateway are detached, create another one" }
 
         return talker!!.sendPacket(packet, block)
@@ -152,13 +156,11 @@ class DefaultGateway(
                     data.eventFlow.emit(event)
                 }
 
-                else -> { /*ignore*/ }
+                else -> { /*ignore*/
+                }
             }
         }
     }
-
-
-
 
 
     private suspend fun handleClose() {

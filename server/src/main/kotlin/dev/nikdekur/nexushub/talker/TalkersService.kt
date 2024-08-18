@@ -15,5 +15,4 @@ interface TalkersService {
     fun getExistingTalker(address: Int): Talker?
     fun setTalker(address: Int, talker: Talker)
     fun removeTalker(talker: Int)
-    fun cleanUp(address: Int)
 }

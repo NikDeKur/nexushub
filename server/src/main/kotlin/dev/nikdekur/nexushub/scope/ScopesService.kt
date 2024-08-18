@@ -8,8 +8,8 @@
 
 package dev.nikdekur.nexushub.scope
 
-import dev.nikdekur.nexushub.database.scope.ScopeDAO
-import dev.nikdekur.nexushub.database.scope.ScopeTable
+import dev.nikdekur.nexushub.storage.scope.ScopeDAO
+import dev.nikdekur.nexushub.storage.scope.ScopeTable
 
 interface ScopesService {
 

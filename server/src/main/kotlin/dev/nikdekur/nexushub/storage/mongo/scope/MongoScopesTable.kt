@@ -8,12 +8,12 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.database.mongo.scope
+package dev.nikdekur.nexushub.storage.mongo.scope
 
 import com.mongodb.kotlin.client.coroutine.MongoCollection
-import dev.nikdekur.nexushub.database.mongo.eq
-import dev.nikdekur.nexushub.database.scope.ScopeDAO
-import dev.nikdekur.nexushub.database.scope.ScopesTable
+import dev.nikdekur.nexushub.storage.mongo.eq
+import dev.nikdekur.nexushub.storage.scope.ScopeDAO
+import dev.nikdekur.nexushub.storage.scope.ScopesTable
 import kotlinx.coroutines.flow.firstOrNull
 import org.bson.conversions.Bson
 
@@ -24,7 +24,6 @@ import org.bson.conversions.Bson
 class MongoScopesTable(
     val collection: MongoCollection<ScopeDAO>
 ) : ScopesTable {
-
 
 
     override suspend fun createScope(dao: ScopeDAO) {

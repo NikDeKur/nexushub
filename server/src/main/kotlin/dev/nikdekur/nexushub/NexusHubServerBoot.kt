@@ -8,6 +8,7 @@
 
 package dev.nikdekur.nexushub
 
+import dev.nikdekur.ndkore.annotation.DelicateAPI
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
@@ -19,8 +20,10 @@ class NexusHubServerBoot {
             KtorNexusHubServer()
         }
 
-        private lateinit var instance: NexusHubServer
+        @DelicateAPI
+        lateinit var instance: NexusHubServer
 
+        @OptIn(DelicateAPI::class)
         @JvmStatic
         fun main(args: Array<String>) {
             val logger = LoggerFactory.getLogger(javaClass)

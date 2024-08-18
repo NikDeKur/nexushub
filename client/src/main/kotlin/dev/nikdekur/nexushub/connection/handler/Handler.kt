@@ -9,6 +9,7 @@
 package dev.nikdekur.nexushub.connection.handler
 
 import dev.nikdekur.ndkore.ext.error
+import dev.nikdekur.nexushub.event.Event
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import dev.nikdekur.nexushub.event.Event
 import org.slf4j.LoggerFactory
 import kotlin.coroutines.CoroutineContext
 

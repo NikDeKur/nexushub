@@ -8,7 +8,7 @@
 
 @file:OptIn(ExperimentalStdlibApi::class)
 
-package dev.nikdekur.nexushub.database.account
+package dev.nikdekur.nexushub.storage.account
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient

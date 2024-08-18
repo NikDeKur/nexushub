@@ -6,12 +6,11 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.config.network
+package dev.nikdekur.nexushub.storage.mongo
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class NexusHubSSLConfig(
-    val cert: String,
-    val key: String
+data class MongoConfig(
+    val url: String
 )

@@ -11,8 +11,7 @@ package dev.nikdekur.nexushub.session
 import dev.nikdekur.ndkore.map.multi.ConcurrentMultiHashMap
 import dev.nikdekur.ndkore.map.set.ConcurrentSetsHashMap
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.config.NexusHubServerConfig
-import dev.nikdekur.nexushub.node.ClientNode
+import dev.nikdekur.nexushub.node.DefaultNode
 import dev.nikdekur.nexushub.scope.Scope
 import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.CoroutineScope
@@ -21,13 +20,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
-import org.koin.core.component.inject
 
 class RuntimeSessionsService(
     override val app: NexusHubServer
 ) : NexusHubService, SessionsService {
-
-    val config by inject<NexusHubServerConfig>()
 
     lateinit var syncingScope: CoroutineScope
 
@@ -45,13 +41,13 @@ class RuntimeSessionsService(
     //                                    scope   holder
     val sessions = ConcurrentMultiHashMap<String, String, Session>()
     val nodeToSessions = ConcurrentSetsHashMap<String, Session>()
-    val scopeToNodes = ConcurrentSetsHashMap<String, ClientNode>()
+    val scopeToNodes = ConcurrentSetsHashMap<String, DefaultNode>()
 
     override fun getExistingSession(scopeId: String, holderId: String): Session? {
         return sessions[scopeId, holderId]
     }
 
-    override fun startSession(node: ClientNode, scope: Scope, holderId: String) {
+    override fun startSession(node: DefaultNode, scope: Scope, holderId: String) {
         val session = Session(node, scope, holderId)
         sessions.put(scope.id, holderId, session)
         nodeToSessions.add(node.id, session)
@@ -68,7 +64,7 @@ class RuntimeSessionsService(
     }
 
 
-    override fun stopAllSessions(node: ClientNode) {
+    override fun stopAllSessions(node: DefaultNode) {
         val nodeSessions = nodeToSessions.remove(node.id)
         nodeSessions?.forEach {
             sessions.remove(it.scope.id, it.holderId)
@@ -76,7 +72,7 @@ class RuntimeSessionsService(
         }
     }
 
-    override fun hasAnySessions(node: ClientNode): Boolean {
+    override fun hasAnySessions(node: DefaultNode): Boolean {
         return nodeToSessions.contains(node.id)
     }
 

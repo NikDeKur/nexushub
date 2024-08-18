@@ -6,13 +6,14 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.config
+package dev.nikdekur.nexushub.storage
 
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 
-@Serializable
-data class NexusHubServerConfig(
-    val network: NexusNetworkConfig,
-    val data: NexusDataConfig,
-    val database: NexusDatabaseConfig
-)
+interface StorageService {
+
+    val scope: CoroutineScope
+    fun getAllCollectionsNames(): Flow<String>
+
+}

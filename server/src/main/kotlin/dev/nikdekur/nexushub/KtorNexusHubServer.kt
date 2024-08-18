@@ -10,23 +10,22 @@
 
 package dev.nikdekur.nexushub
 
-import com.charleskorn.kaml.Yaml
-import com.charleskorn.kaml.YamlConfiguration
 import dev.nikdekur.ndkore.ext.addShutdownHook
+import dev.nikdekur.ndkore.koin.SimpleKoinContext
 import dev.nikdekur.ndkore.service.KoinServicesManager
+import dev.nikdekur.ndkore.service.ServicesManager
+import dev.nikdekur.ndkore.service.getService
 import dev.nikdekur.nexushub.auth.AccountAuthenticationService
 import dev.nikdekur.nexushub.auth.AuthenticationService
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.auth.account.TableAccountsService
-import dev.nikdekur.nexushub.config.NexusHubServerConfig
-import dev.nikdekur.nexushub.database.Database
-import dev.nikdekur.nexushub.database.mongo.MongoDatabase
+import dev.nikdekur.nexushub.dataset.DataSetService
+import dev.nikdekur.nexushub.dataset.config.ConfigDataSetService
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.http.session.HTTPSessionAuthService
-import dev.nikdekur.nexushub.koin.NexusHubKoinContext
-import dev.nikdekur.nexushub.koin.loadModule
 import dev.nikdekur.nexushub.network.Routing
 import dev.nikdekur.nexushub.node.NodesService
+import dev.nikdekur.nexushub.node.RuntimeNodesService
 import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.protection.argon2.Argon2ProtectionService
 import dev.nikdekur.nexushub.scope.MongoScopesService
@@ -34,12 +33,13 @@ import dev.nikdekur.nexushub.scope.ScopesService
 import dev.nikdekur.nexushub.service.SetupService
 import dev.nikdekur.nexushub.session.RuntimeSessionsService
 import dev.nikdekur.nexushub.session.SessionsService
+import dev.nikdekur.nexushub.storage.StorageService
+import dev.nikdekur.nexushub.storage.mongo.MongoStorageService
 import dev.nikdekur.nexushub.talker.RuntimeTalkersService
 import dev.nikdekur.nexushub.talker.TalkersService
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.serialization.decodeFromString
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
@@ -61,11 +61,10 @@ class KtorNexusHubServer : NexusHubServer {
     override val id = javaClass.simpleName
 
     lateinit var server: EmbeddedServer<*, *>
-    lateinit var config: NexusHubServerConfig
 
     override val logger = LoggerFactory.getLogger(javaClass)
 
-    override val servicesManager = KoinServicesManager<NexusHubServer>(NexusHubKoinContext, this)
+    override lateinit var servicesManager: ServicesManager<NexusHubServer>
 
     var startTime by Delegates.notNull<Long>()
 
@@ -75,25 +74,48 @@ class KtorNexusHubServer : NexusHubServer {
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun start(args: Array<String>) {
         startTime = System.currentTimeMillis()
-        val configPath = args.getOrElse(0) { "config.yml" }
+
+        // Config Part start
+        val configPath = args.firstOrNull() ?: "config.yml"
         val configFile = File(configPath)
-        if (!configFile.exists()) {
-            throw Exception("Config file not found! ")
+        require(configFile.exists()) { "Config file not found!" }
+        // Config Part end
+
+        val context = SimpleKoinContext()
+        context.startKoin {
+            environmentProperties()
+        }
+        servicesManager = KoinServicesManager<NexusHubServer>(context, this)
+
+        servicesManager.apply {
+            val server = this@KtorNexusHubServer
+
+            registerService(ConfigDataSetService(server, configFile), DataSetService::class)
+
+            val db = MongoStorageService(server)
+            registerService(db, StorageService::class)
+            registerService(MongoScopesService(server, db), ScopesService::class)
+            registerService(TableAccountsService(server, db), AccountsService::class)
+
+            registerService(Argon2ProtectionService(server), ProtectionService::class)
+            registerService(RuntimeNodesService(server), NodesService::class)
+            registerService(RuntimeSessionsService(server), SessionsService::class)
+            registerService(RuntimeTalkersService(server), TalkersService::class)
+            registerService(AccountAuthenticationService(server), AuthenticationService::class)
+            registerService(HTTPSessionAuthService(server), HTTPAuthService::class)
+
+            registerService(SetupService(server))
         }
 
-        val yaml by lazy {
-            Yaml(
-                configuration = YamlConfiguration(
-                    strictMode = false
-                )
-            )
-        }
 
-        config = configFile.readText().let {
-            yaml.decodeFromString<NexusHubServerConfig>(it)
-        }
-        val networkConfig = config.network
-        val ssl = networkConfig.ssl
+        logger.info("Loading services...")
+        servicesManager.loadAll()
+
+        val dataset = servicesManager.getService<DataSetService>()
+            .getDataSet()
+
+        val networkDataSet = dataset.network
+        val ssl = networkDataSet.ssl
 
 
         val keyStore = ssl?.let {
@@ -107,6 +129,8 @@ class KtorNexusHubServer : NexusHubServer {
         val environment = applicationEnvironment {
             log = LoggerFactory.getLogger("ktor.application")
         }
+
+
         server = embeddedServer(Netty, environment, {
             if (keyStore != null)
                 sslConnector(
@@ -117,62 +141,31 @@ class KtorNexusHubServer : NexusHubServer {
                 ) {}
 
             connector {
-                port = networkConfig.port
+                port = networkDataSet.port
             }
         })
 
-        startKoin()
+        val routing = Routing(this, server.application)
+        routing.onLoad()
 
-
-        servicesManager.apply {
-            val server = this@KtorNexusHubServer
-
-            val db = MongoDatabase(server)
-            registerService(db, Database::class)
-            registerService(MongoScopesService(server, db), ScopesService::class)
-            registerService(TableAccountsService(server, db), AccountsService::class)
-
-            registerService(Argon2ProtectionService(server), ProtectionService::class)
-            registerService(NodesService(server), NodesService::class)
-            registerService(RuntimeSessionsService(server), SessionsService::class)
-            registerService(RuntimeTalkersService(server), TalkersService::class)
-            registerService(AccountAuthenticationService(server), AuthenticationService::class)
-            registerService(HTTPSessionAuthService(server), HTTPAuthService::class)
-            registerService(Routing(server, this@KtorNexusHubServer.server.application), Routing::class)
-
-            registerService(SetupService(server))
-        }
-
-        loadModule {
-            single { config }
-        }
 
         addShutdownHook {
 
             logger.info("Unloading services...")
+            routing.onUnload()
             servicesManager.unloadAll()
 
             logger.info("Shutting down ktor server...")
             logger.info("This may take a few seconds...")
-            val config = config.network.shutdown
+            val config = networkDataSet.shutdown
             server.stop(config.gracePeriod, config.timeout, config.unit)
         }
 
-        logger.info("Loading services...")
-        servicesManager.loadAll()
 
         logger.info("Starting ktor server...")
         server.start(true)
     }
-
-
-    fun startKoin() {
-        NexusHubKoinContext.startKoin {
-            environmentProperties()
-        }
-    }
 }
-
 
 
 fun createKeyStore(certFile: File, keyFile: File, alias: String): KeyStore {

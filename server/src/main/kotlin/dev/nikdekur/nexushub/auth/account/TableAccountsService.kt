@@ -8,26 +8,26 @@
 
 package dev.nikdekur.nexushub.auth.account
 
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.database.account.AccountDAO
-import dev.nikdekur.nexushub.database.account.AccountsTable
-import dev.nikdekur.nexushub.database.mongo.MongoAccountsTable
-import dev.nikdekur.nexushub.database.mongo.MongoDatabase
-import dev.nikdekur.nexushub.database.mongo.ensureCollectionExists
-import dev.nikdekur.nexushub.database.mongo.indexOptions
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.service.NexusHubService
+import dev.nikdekur.nexushub.storage.account.AccountDAO
+import dev.nikdekur.nexushub.storage.account.AccountsTable
+import dev.nikdekur.nexushub.storage.mongo.MongoAccountsTable
+import dev.nikdekur.nexushub.storage.mongo.MongoStorageService
+import dev.nikdekur.nexushub.storage.mongo.ensureCollectionExists
+import dev.nikdekur.nexushub.storage.mongo.indexOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.bson.Document
-import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 
 class TableAccountsService(
     override val app: NexusHubServer,
-    val database: MongoDatabase
+    val database: MongoStorageService
 ) : NexusHubService, AccountsService {
 
     val protectionService: ProtectionService by inject()
@@ -60,14 +60,13 @@ class TableAccountsService(
     }
 
 
-
     override fun getAccount(login: String): Account? {
         return accounts[login]
     }
 
     fun registerAccount(dao: AccountDAO): Account {
         val password = protectionService.deserializePassword(dao.password)
-        return Account(dao, password, dao.allowedScopes.toMutableSet()).also {
+        return Account(app, dao, password, dao.allowedScopes.toMutableSet()).also {
             accounts[dao.login] = it
         }
     }
@@ -108,7 +107,6 @@ class TableAccountsService(
         table.deleteAccount(login)
         accounts.remove(login)
     }
-
 
 
     val encryptingDispatcher = Dispatchers.Default

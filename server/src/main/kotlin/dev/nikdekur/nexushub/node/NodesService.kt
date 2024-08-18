@@ -6,84 +6,35 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
+@file:Suppress("NOTHING_TO_INLINE")
+
 package dev.nikdekur.nexushub.node
 
-import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
-import dev.nikdekur.ndkore.service.Dependencies
-import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.config.NexusHubServerConfig
-import dev.nikdekur.nexushub.network.talker.Talker
-import dev.nikdekur.nexushub.service.NexusHubService
+import dev.nikdekur.nexushub.auth.account.Account
+import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
-import org.koin.core.component.inject
-import java.util.concurrent.ConcurrentHashMap
 
-class NodesService(
-    override val app: NexusHubServer
-) : NexusHubService {
+interface NodesService {
 
-    // Specify it as last, to be first for unloading
-    // We have to close all nodes before unloading other services
-    override val dependencies = Dependencies.last()
+    val nodes: Collection<Node>
 
-    val config: NexusHubServerConfig by inject()
+    fun newNode(talker: ClientTalker, account: Account, id: String): Node
+    fun getNode(talker: ClientTalker): Node?
+    fun getNode(id: String): Node?
+    fun removeNode(node: ClientTalker): Node?
 
-    lateinit var scope: CoroutineScheduler
-
-    override fun onLoad() {
-        scope = CoroutineScheduler.fromSupervisor(Dispatchers.Default)
-        val config = config.network.ping
-        val interval = config.interval * 1000L
-        val deadInterval = interval + config.extraInterval
-
-        scope.runTaskTimer(interval) {
-            connectedNodes.values.forEach { node ->
-                if (node.isAlive(deadInterval)) return@forEach
-                node.close(CloseCode.PING_FAILED, "Ping failed")
-            }
-        }
-    }
-
-    override fun onUnload() {
-        runBlocking {
-            closeAll(CloseCode.SHUTDOWN, "Server is shutting down")
-        }
-        scope.cancel()
-    }
-
-    val connectedNodes = ConcurrentHashMap<String, ClientNode>()
-    val socketToNode = ConcurrentHashMap<Int, ClientNode>()
-
-    fun addNode(node: ClientNode) {
-        connectedNodes[node.id] = node
-        socketToNode[node.talker.addressHash] = node
-    }
-
-
-
-    fun removeNode(node: ClientNode) {
-        connectedNodes.remove(node.id)
-        socketToNode.remove(node.talker.addressHash)
-    }
-
-    fun getAuthenticatedNode(talker: Talker): ClientNode? {
-        return socketToNode[talker.addressHash]
-    }
-
-    fun isNodeExists(nodeId: String): Boolean {
-        return connectedNodes.containsKey(nodeId)
-    }
-
-    fun isNodeExists(talker: Talker): Boolean {
-        return socketToNode.containsKey(talker.addressHash)
-    }
-
-    suspend fun closeAll(code: CloseCode, reason: String) {
-        connectedNodes.values.forEach {
-            it.talker.close(code, reason)
-        }
-    }
+    /**
+     * Close all nodes with the specified code and reason.
+     *
+     * Suspends until all nodes are closed.
+     *
+     * @param code The close code.
+     * @param reason The reason for closing.
+     */
+    suspend fun closeAllNodes(code: CloseCode, reason: String)
 }
+
+inline fun NodesService.isNodeExists(talker: ClientTalker) = getNode(talker) != null
+inline fun NodesService.isNodeExists(id: String) = getNode(id) != null
+
+

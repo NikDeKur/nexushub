@@ -34,7 +34,6 @@ sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
     ) = respond<Unit>(packet, builder)
 
 
-
     sealed class ScopeEvent(context: IncomingContext<out Packet.Scope>) : NetworkEvent(context) {
         val scopeId by context.packet::scopeId
     }
@@ -42,7 +41,6 @@ sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
     sealed class SessionEvent(context: IncomingContext<out Packet.Session>) : ScopeEvent(context) {
         val holderId by context.packet::holderId
     }
-
 
 
     class Hello(context: IncomingContext<PacketHello>) : NetworkEvent(context)

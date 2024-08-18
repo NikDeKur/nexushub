@@ -8,10 +8,12 @@
 
 package dev.nikdekur.nexushub.service
 
-import dev.nikdekur.ndkore.service.Service
+import dev.nikdekur.ndkore.service.ServicesComponent
 import dev.nikdekur.nexushub.NexusHubServer
 
-interface NexusHubService : Service<NexusHubServer>, NexusHubComponent {
+interface NexusHubComponent : ServicesComponent<NexusHubServer> {
+    override val app: NexusHubServer
+
     override val manager
         get() = app.servicesManager
 }

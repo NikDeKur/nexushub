@@ -11,11 +11,11 @@
 package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.ndkore.ext.isBlankOrEmpty
-import dev.nikdekur.ndkore.`interface`.Snowflake
+import dev.nikdekur.ndkore.service.inject
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.Account
-import dev.nikdekur.nexushub.database.Database
-import dev.nikdekur.nexushub.koin.NexusHubComponent
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
+import dev.nikdekur.nexushub.network.talker.sendPacket
 import dev.nikdekur.nexushub.packet.*
 import dev.nikdekur.nexushub.packet.PacketError.Code
 import dev.nikdekur.nexushub.packet.PacketError.Level
@@ -33,28 +33,29 @@ import dev.nikdekur.nexushub.packet.out.PacketTopPosition
 import dev.nikdekur.nexushub.packet.out.PacketUserData
 import dev.nikdekur.nexushub.scope.Scope
 import dev.nikdekur.nexushub.scope.ScopesService
+import dev.nikdekur.nexushub.service.NexusHubComponent
 import dev.nikdekur.nexushub.session.SessionsService
+import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.talker.ClientTalker
-import dev.nikdekur.nexushub.talker.TalkersService
 import dev.nikdekur.nexushub.util.CloseCode
 import dev.nikdekur.nexushub.util.GsonSupport
 import dev.nikdekur.nexushub.util.NexusData
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
 
-class ClientNode(
+class DefaultNode(
+    override val app: NexusHubServer,
     val talker: ClientTalker,
-    override val id: String,
     val account: Account,
-) : Snowflake<String>, ClientTalker by talker, NexusHubComponent {
+    override val id: String,
+) : Node, ClientTalker by talker, NexusHubComponent {
 
-    val database: Database by inject()
+    val storage: StorageService by inject()
     val scopesService: ScopesService by inject()
     val sessionsService: SessionsService by inject()
-    val talkersService: TalkersService by inject()
+    val nodesService: NodesService by inject()
 
     val logger = LoggerFactory.getLogger(javaClass)
 
@@ -65,7 +66,7 @@ class ClientNode(
      */
     val createdAt = System.currentTimeMillis()
 
-    suspend fun processAuthenticatedPacket(context: IncomingContext<out Packet>) {
+    override suspend fun processPacket(context: IncomingContext<out Packet>) {
         val packet = context.packet
 
         // Drop a packet if it's a response.
@@ -159,7 +160,13 @@ class ClientNode(
         // If any session exists, and it's not this one, return error to a client
         val session = sessionsService.getExistingSession(scopeId, holderId)
         if (session != null && session.node != this) {
-            context.respond<Unit>(PacketError(Level.ERROR, Code.SESSION_ALREADY_EXISTS, "Another session already exists for this holder. Only one session is allowed."))
+            context.respond<Unit>(
+                PacketError(
+                    Level.ERROR,
+                    Code.SESSION_ALREADY_EXISTS,
+                    "Another session already exists for this holder. Only one session is allowed."
+                )
+            )
             return
         }
 
@@ -178,7 +185,6 @@ class ClientNode(
 
         context.respond<Unit>(PacketOk("Data saved"))
     }
-
 
 
     suspend fun processBatchSaveDataPacket(context: IncomingContext<PacketBatchSaveData>) {
@@ -203,7 +209,7 @@ class ClientNode(
                 if (existingSession != null && existingSession.node != this) {
                     logger.warn(
                         "Another session already exists for this holder. " +
-                        "Only one session is allowed. Skipping data for ${scope.id}:$holderId. Requested by $this"
+                                "Only one session is allowed. Skipping data for ${scope.id}:$holderId. Requested by $this"
                     )
                     return@mapNotNull null
                 }
@@ -212,7 +218,7 @@ class ClientNode(
                 if (data.isEmpty())
                     return@mapNotNull null
 
-                database.scope.async {
+                storage.scope.async {
                     scope.setData(holderId, data)
                 }
             } catch (_: Exception) {
@@ -406,7 +412,8 @@ class ClientNode(
 
 
     override suspend fun close(code: CloseCode, comment: String) {
-        talkersService.cleanUp(addressHash)
+        nodesService.removeNode(this)
+        sessionsService.stopAllSessions(this)
         talker.close(code, comment)
     }
 }

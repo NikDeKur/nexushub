@@ -134,7 +134,7 @@ interface Session<H, S : ScopeData<S>> {
          *
          * @return `true` if the session is in the [ACTIVE] state, `false` otherwise.
          */
-        inline val isActive : Boolean
+        inline val isActive: Boolean
             get() = this == ACTIVE
 
         /**
@@ -142,7 +142,7 @@ interface Session<H, S : ScopeData<S>> {
          *
          * @return `true` if the session is in the [STOPPING] or [INACTIVE] state, `false` otherwise.
          */
-        inline val isInactive : Boolean
+        inline val isInactive: Boolean
             get() = this == STOPPING || this == INACTIVE
     }
 }

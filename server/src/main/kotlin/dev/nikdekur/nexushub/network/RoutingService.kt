@@ -10,10 +10,11 @@ package dev.nikdekur.nexushub.network
 
 import dev.nikdekur.ndkore.ext.log
 import dev.nikdekur.ndkore.ext.warn
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.AuthenticationService
 import dev.nikdekur.nexushub.auth.account.AccountsService
-import dev.nikdekur.nexushub.config.NexusHubServerConfig
+import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.modal.Account
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
@@ -27,7 +28,9 @@ import dev.nikdekur.nexushub.modal.out.AccountsListResponse
 import dev.nikdekur.nexushub.network.auth.authenticate
 import dev.nikdekur.nexushub.network.ratelimit.PeriodRateLimiter
 import dev.nikdekur.nexushub.network.ratelimit.RateLimiter
+import dev.nikdekur.nexushub.network.talker.sendPacket
 import dev.nikdekur.nexushub.node.NodesService
+import dev.nikdekur.nexushub.node.isNodeExists
 import dev.nikdekur.nexushub.packet.PacketOk
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
 import dev.nikdekur.nexushub.packet.`in`.PacketHello
@@ -57,7 +60,6 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.html.body
 import kotlinx.html.p
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.time.Duration
@@ -71,7 +73,7 @@ class Routing(
 
     val logger = LoggerFactory.getLogger(javaClass)
 
-    val config: NexusHubServerConfig by inject()
+    val datasetService: DataSetService by inject()
     val talkersService: TalkersService by inject()
     val authService: AuthenticationService by inject()
     val httpAuthService: HTTPAuthService by inject()
@@ -82,17 +84,6 @@ class Routing(
 
     override fun onLoad() {
         processingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        init()
-    }
-
-    override fun onUnload() {
-        processingScope.cancel()
-    }
-
-
-
-
-    fun init() {
         logger.info("Initializing routing")
 
         application.install(WebSockets) {
@@ -118,7 +109,7 @@ class Routing(
 
             route("connection") {
 
-                val networkConfig = config.network
+                val networkConfig = datasetService.getDataSet().network
                 val pingConfig = networkConfig.ping
                 val rateConfig = networkConfig.rateLimit
 
@@ -142,12 +133,14 @@ class Routing(
             authenticate {
 
                 post("logout") {
+                    logger.info("[${call.addressStr}] Logging out requested")
                     httpAuthService.logout(call)
                 }
 
                 route("accounts") {
 
                     post("list") {
+                        logger.info("[${call.addressStr}] Accounts list requested")
                         val accounts = accountsService.getAccounts()
 
                         val response = AccountsListResponse(
@@ -155,14 +148,17 @@ class Routing(
                                 Account(it.login, it.allowedScopes)
                             }
                         )
+                        logger.info("[${call.addressStr}] Responding with accounts list: $response")
                         call.respond(response)
                     }
 
                     post("create") {
+                        logger.info("[${call.addressStr}] Account creation requested")
                         val request = call.receive<AccountCreateRequest>()
                         val login = request.login
                         val account = accountsService.getAccount(login)
                         if (account != null) {
+                            logger.info("[${call.addressStr}] Account '$login' already exists")
                             call.respondText(
                                 text = "Account '$login' already exists",
                                 status = HttpStatusCode.Conflict
@@ -173,17 +169,21 @@ class Routing(
                         val password = request.password
                         val scopes = request.scopes
                         accountsService.createAccount(login, password, scopes)
+                        logger.info("[${call.addressStr}] Account '$login' created with scopes: $scopes")
                         call.respondText("Success")
                     }
 
                     post("delete") {
+                        logger.info("[${call.addressStr}] Account deletion requested")
                         val request = call.receive<AccountDeleteRequest>()
                         val login = request.login
                         accountsService.deleteAccount(login)
+                        logger.info("[${call.addressStr}] Account '$login' deleted")
                         call.respondText("Success")
                     }
 
                     post("password") {
+                        logger.info("[${call.addressStr}] Password change requested")
                         val request = call.receive<AccountPasswordRequest>()
                         val login = request.login
                         val account = accountsService.getAccount(login) ?: run {
@@ -192,6 +192,7 @@ class Routing(
                         }
                         val newPassword = request.newPassword
                         account.changePassword(newPassword)
+                        logger.info("[${call.addressStr}] Password for account '$login' changed")
                         call.respondText("Success")
                     }
 
@@ -199,6 +200,7 @@ class Routing(
                     route("scopes") {
 
                         post("list") {
+                            logger.info("[${call.addressStr}] Account scopes list requested")
                             val request = call.receive<AccountScopesListRequest>()
                             val login = request.login
                             val account = accountsService.getAccount(login) ?: run {
@@ -206,14 +208,18 @@ class Routing(
                                 return@post
                             }
                             val scopes = account.allowedScopes
-                            call.respond(AccountScopesListResponse(scopes))
+                            val response = AccountScopesListResponse(scopes)
+                            logger.info("[${call.addressStr}] Responding with account '$login' scopes list: $scopes")
+                            call.respond(response)
                         }
 
                         post("update") {
+                            logger.info("[${call.addressStr}] Account scopes update requested")
                             val request = call.receive<AccountScopesUpdateRequest>()
 
                             val login = request.login
                             val account = accountsService.getAccount(login) ?: run {
+                                logger.info("[${call.addressStr}] Account '$login' not found")
                                 call.respondText("Account '$login' not found")
                                 return@post
                             }
@@ -223,12 +229,14 @@ class Routing(
                             when (action) {
                                 AccountScopesUpdateRequest.Action.ADD -> {
                                     scopes.forEach {
+                                        logger.info("[${call.addressStr}] Adding scope '$it' to account '$login'")
                                         account.allowScope(it)
                                     }
                                 }
 
                                 AccountScopesUpdateRequest.Action.REMOVE -> {
                                     scopes.forEach {
+                                        logger.info("[${call.addressStr}] Removing scope '$it' from account '$login'")
                                         account.removeScope(it)
                                     }
                                 }
@@ -236,11 +244,13 @@ class Routing(
                                 AccountScopesUpdateRequest.Action.SET -> {
                                     account.clearScopes()
                                     scopes.forEach {
+                                        logger.info("[${call.addressStr}] Allowing scope '$it' (by set) to account '$login'")
                                         account.allowScope(it)
                                     }
                                 }
 
                                 AccountScopesUpdateRequest.Action.CLEAR -> {
+                                    logger.info("[${call.addressStr}] Clearing all scopes from account '$login'")
                                     account.clearScopes()
                                 }
                             }
@@ -255,6 +265,10 @@ class Routing(
         logger.info("Routing initialized")
     }
 
+    override fun onUnload() {
+        processingScope.cancel()
+    }
+
 
     @Suppress("NOTHING_TO_INLINE")
     suspend inline fun DefaultWebSocketServerSession.protocol(
@@ -265,19 +279,21 @@ class Routing(
         val address = call.addressHash
         val addressStr = call.addressStr
 
-        val talker = KtorClientTalker(this)
+        val talker = KtorClientTalker(app, this)
         talkersService.setTalker(address, talker)
 
         val job = launch {
             try {
                 incoming.consumeEach { frame ->
                     if (talker.isBlocked) {
+                        logger.info("[$addressStr] Connection is blocked. Closing")
                         this@launch.cancel()
                         return@consumeEach
                     }
 
                     if (!rateLimiter.acquire(talker)) {
                         talker.closeWithBlock(CloseCode.RATE_LIMITED)
+                        logger.info("[$addressStr] Rate limited. Closing")
                         this@launch.cancel()
                         return@consumeEach
                     }
@@ -333,13 +349,11 @@ class Routing(
             logger.warn("[$addressStr] Exception occurred!", e)
         } finally {
             logger.info("[$addressStr] Closing connection")
-            job.cancel() // cancel consumeEach on WebSocket close
             talker.closeWithBlock(CloseCode.INTERNAL_ERROR, "Node hasn't been closed properly")
         }
 
     }
 }
-
 
 
 inline val ApplicationCall.addressHash: Int

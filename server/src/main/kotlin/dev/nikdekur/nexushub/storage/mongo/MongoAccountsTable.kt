@@ -8,12 +8,12 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.database.mongo
+package dev.nikdekur.nexushub.storage.mongo
 
 import com.mongodb.client.result.DeleteResult
 import com.mongodb.kotlin.client.coroutine.MongoCollection
-import dev.nikdekur.nexushub.database.account.AccountDAO
-import dev.nikdekur.nexushub.database.account.AccountsTable
+import dev.nikdekur.nexushub.storage.account.AccountDAO
+import dev.nikdekur.nexushub.storage.account.AccountsTable
 import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
 

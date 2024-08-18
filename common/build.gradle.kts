@@ -65,8 +65,6 @@ license {
 }
 
 
-
-
 val repoUsernameProp = "NDK_REPO_USERNAME"
 val repoPasswordProp = "NDK_REPO_PASSWORD"
 val repoUsername = System.getenv(repoUsernameProp)

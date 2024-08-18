@@ -86,8 +86,6 @@ class PacketSerializer(val packet: Packet) {
     }
 
 
-
-
     fun writeChar(value: Char) {
         ensureCapacity(2)
         byteBuffer.putChar(value)
@@ -112,7 +110,12 @@ class PacketSerializer(val packet: Packet) {
         }
     }
 
-    fun <K, V> writeMap(map: Map<K, V>, size: Number = map.size, keyWriter: PacketSerializer.(K) -> Unit, valueWriter: PacketSerializer.(V) -> Unit) {
+    fun <K, V> writeMap(
+        map: Map<K, V>,
+        size: Number = map.size,
+        keyWriter: PacketSerializer.(K) -> Unit,
+        valueWriter: PacketSerializer.(V) -> Unit
+    ) {
         writeNumber(size)
         map.forEach { (k, v) ->
             this.keyWriter(k)

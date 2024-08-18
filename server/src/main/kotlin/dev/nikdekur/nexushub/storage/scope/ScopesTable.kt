@@ -6,11 +6,12 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.config
+package dev.nikdekur.nexushub.storage.scope
 
-import kotlinx.serialization.Serializable
+interface ScopesTable {
 
-@Serializable
-data class NexusDatabaseConfig(
-    val connection: String
-)
+    suspend fun createScope(dao: ScopeDAO)
+    suspend fun findScope(scope: String): ScopeDAO?
+    suspend fun updateScope(scopeDAO: ScopeDAO)
+    suspend fun deleteScope(scope: String)
+}

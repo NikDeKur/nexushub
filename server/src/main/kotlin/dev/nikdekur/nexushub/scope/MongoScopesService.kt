@@ -9,14 +9,14 @@
 package dev.nikdekur.nexushub.scope
 
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.database.mongo.MongoDatabase
-import dev.nikdekur.nexushub.database.mongo.ensureCollectionExists
-import dev.nikdekur.nexushub.database.mongo.indexOptions
-import dev.nikdekur.nexushub.database.mongo.scope.MongoScopeTable
-import dev.nikdekur.nexushub.database.mongo.scope.MongoScopesTable
-import dev.nikdekur.nexushub.database.scope.ScopeDAO
-import dev.nikdekur.nexushub.database.scope.ScopesTable
 import dev.nikdekur.nexushub.service.NexusHubService
+import dev.nikdekur.nexushub.storage.mongo.MongoStorageService
+import dev.nikdekur.nexushub.storage.mongo.ensureCollectionExists
+import dev.nikdekur.nexushub.storage.mongo.indexOptions
+import dev.nikdekur.nexushub.storage.mongo.scope.MongoScopeTable
+import dev.nikdekur.nexushub.storage.mongo.scope.MongoScopesTable
+import dev.nikdekur.nexushub.storage.scope.ScopeDAO
+import dev.nikdekur.nexushub.storage.scope.ScopesTable
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.bson.Document
@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class MongoScopesService(
     override val app: NexusHubServer,
-    val database: MongoDatabase
+    val database: MongoStorageService
 ) : NexusHubService, ScopesService {
 
     val scopes = ConcurrentHashMap<String, Scope>()
@@ -67,7 +67,7 @@ class MongoScopesService(
 
         val collection = getScopeCollection(scopeId)
 
-        return Scope(scopeId, collection).also {
+        return Scope(app, scopeId, collection).also {
             scopes[scopeId] = it
         }
     }
@@ -97,7 +97,7 @@ class MongoScopesService(
             createScopeData(dao)
             dao
         }
-        return MongoScopeTable(scopeId, mongoCollection, dao)
+        return MongoScopeTable(app, scopeId, mongoCollection, dao)
     }
 
 

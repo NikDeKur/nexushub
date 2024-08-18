@@ -14,28 +14,30 @@ import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import dev.nikdekur.ndkore.ext.*
 import dev.nikdekur.ndkore.`interface`.Snowflake
-import dev.nikdekur.nexushub.config.NexusHubServerConfig
+import dev.nikdekur.ndkore.service.inject
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.data.buildLeaderboard
-import dev.nikdekur.nexushub.database.scope.ScopeTable
-import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.nexushub.dataset.DataSetService
+import dev.nikdekur.nexushub.service.NexusHubComponent
+import dev.nikdekur.nexushub.storage.scope.ScopeTable
 import dev.nikdekur.nexushub.util.NexusData
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 data class Scope(
+    override val app: NexusHubServer,
     override val id: String,
     val collection: ScopeTable
 ) : Snowflake<String>, NexusHubComponent {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
-    val config: NexusHubServerConfig by inject()
+    val datasetService: DataSetService by inject()
 
-    val cacheExpiration = config.data.cache_expiration
-    val cacheSize = config.data.cache_max_size
+    val cacheExpiration = datasetService.getDataSet().cache.cacheExpiration
+    val cacheSize = datasetService.getDataSet().cache.cacheMaxSize
 
     //              HolderId
     val cache: Cache<String, NexusData> = CacheBuilder.newBuilder()
@@ -62,8 +64,6 @@ data class Scope(
     }
 
 
-
-
     suspend fun getLeaderboard(path: String, startFrom: Int, limit: Int): Leaderboard {
         val leaderboard = logger.recordTiming(name = "getLeaderboard") {
             val rawLeaderboard = collection.getLeaderboard(path, startFrom, limit)
@@ -77,6 +77,7 @@ data class Scope(
 
                 rawLeaderboard.forEachSafe(Exception::printStackTrace) {
                     val holderId = it["holderId"] as String
+
                     @Suppress("kotlin:S6611") // We know that the field is present
 
                     // Get the value from the nested path

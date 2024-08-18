@@ -32,6 +32,7 @@ enum class CloseCode(
 
 
     val code = hardCode ?: (4000 + ordinal).toShort()
+
     companion object {
         fun fromCode(code: Short): CloseCode? {
             if (code >= 4000)

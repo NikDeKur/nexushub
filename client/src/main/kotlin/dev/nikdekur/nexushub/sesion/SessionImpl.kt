@@ -37,7 +37,6 @@ open class SessionImpl<H, S : ScopeData<S>>(
         }
 
 
-
     override var state = State.INACTIVE
 
     /**
@@ -62,6 +61,7 @@ open class SessionImpl<H, S : ScopeData<S>>(
         try {
 
             val loadPacket = PacketLoadData(service.scope, id)
+
             @Suppress("RemoveExplicitTypeArguments")
             val dataStr = service.hub.gateway.sendPacket<String?>(loadPacket) {
                 throwOnTimeout(5000)
@@ -79,7 +79,6 @@ open class SessionImpl<H, S : ScopeData<S>>(
             if (dataStr == null) {
                 return
             }
-
 
 
             val serializer = service.serializer

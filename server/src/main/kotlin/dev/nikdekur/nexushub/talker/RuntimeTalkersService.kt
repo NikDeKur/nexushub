@@ -8,12 +8,12 @@
 
 package dev.nikdekur.nexushub.talker
 
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.session.SessionsService
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
@@ -38,19 +38,5 @@ class RuntimeTalkersService(
 
     override fun removeTalker(talker: Int) {
         talkers.remove(talker)
-    }
-
-
-    override fun cleanUp(address: Int) {
-        getExistingTalker(address)?.let { talker ->
-            val node = nodesService.getAuthenticatedNode(talker)
-            if (node != null) {
-                logger.info("[${talker.addressStr}] Node ${node.id} disconnected")
-                nodesService.removeNode(node)
-                sessionsService.stopAllSessions(node)
-            }
-
-            removeTalker(address)
-        }
     }
 }

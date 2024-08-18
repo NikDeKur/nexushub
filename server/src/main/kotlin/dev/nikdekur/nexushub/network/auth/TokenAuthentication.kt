@@ -8,18 +8,21 @@
 
 package dev.nikdekur.nexushub.network.auth
 
+import dev.nikdekur.ndkore.annotation.DelicateAPI
+import dev.nikdekur.ndkore.service.getService
+import dev.nikdekur.nexushub.NexusHubServerBoot
 import dev.nikdekur.nexushub.http.HTTPAuthService
-import dev.nikdekur.nexushub.koin.getKoin
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.plugins.origin
 import io.ktor.server.response.respondText
 
+@OptIn(DelicateAPI::class)
 val TokenAuthenticationPlugin = createRouteScopedPlugin("TokenAuthentication") {
     onCall {
         it.request.origin.apply {
 
-            val authService = getKoin().get<HTTPAuthService>()
+            val authService = NexusHubServerBoot.instance.servicesManager.getService<HTTPAuthService>()
             val auth = authService.ensureAuthenticated(it)
             when (auth) {
                 HTTPAuthService.EnsureAuthResponse.AUTHENTICATED -> {
@@ -43,8 +46,6 @@ val TokenAuthenticationPlugin = createRouteScopedPlugin("TokenAuthentication") {
         }
     }
 }
-
-
 
 
 data class RootToken(

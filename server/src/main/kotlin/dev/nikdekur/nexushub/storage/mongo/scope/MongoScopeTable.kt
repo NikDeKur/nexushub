@@ -8,16 +8,18 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.database.mongo.scope
+package dev.nikdekur.nexushub.storage.mongo.scope
 
 import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection
-import dev.nikdekur.nexushub.database.Database
-import dev.nikdekur.nexushub.database.mongo.indexOptions
-import dev.nikdekur.nexushub.database.scope.ScopeDAO
-import dev.nikdekur.nexushub.database.scope.ScopeTable
-import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.ndkore.service.inject
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.scope.ScopesService
+import dev.nikdekur.nexushub.service.NexusHubComponent
+import dev.nikdekur.nexushub.storage.StorageService
+import dev.nikdekur.nexushub.storage.mongo.indexOptions
+import dev.nikdekur.nexushub.storage.scope.ScopeDAO
+import dev.nikdekur.nexushub.storage.scope.ScopeTable
 import dev.nikdekur.nexushub.util.NexusData
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.singleOrNull
@@ -25,10 +27,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
 class MongoScopeTable(
+    override val app: NexusHubServer,
     /**
      * The id of the scope
      */
@@ -37,7 +39,7 @@ class MongoScopeTable(
     override var data: ScopeDAO
 ) : ScopeTable, NexusHubComponent {
 
-    val database: Database by inject()
+    val storage: StorageService by inject()
     val scopesService: ScopesService by inject()
 
     val logger = LoggerFactory.getLogger("ScopeCollection")
@@ -46,11 +48,13 @@ class MongoScopeTable(
         val filter = idFilter(holderId)
         return collection.find(filter)
             .singleOrNull()
-            ?.let { HashMap(it)
-                .apply {
-                    remove("_id")
-                    remove("holderId")
-                }}
+            ?.let {
+                HashMap(it)
+                    .apply {
+                        remove("_id")
+                        remove("holderId")
+                    }
+            }
     }
 
 
@@ -80,13 +84,9 @@ class MongoScopeTable(
     }
 
 
-
-
-
     inline fun idFilter(holderId: String): Bson {
         return Filters.eq("holderId", holderId)
     }
-
 
 
     override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): List<Document> {
@@ -125,11 +125,10 @@ class MongoScopeTable(
     }
 
 
-
     private inline fun ensureIndexAsync(field: String): Job? {
         if (data.indexes.contains(field)) return null
 
-        return database.scope.launch {
+        return storage.scope.launch {
             // Update scope in another coroutine to avoid blocking
             data = data.copy(indexes = data.indexes + field)
             createIndex(field, false)

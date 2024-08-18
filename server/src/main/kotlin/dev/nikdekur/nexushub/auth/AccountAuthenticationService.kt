@@ -10,18 +10,18 @@ package dev.nikdekur.nexushub.auth
 
 import dev.nikdekur.ndkore.ext.delay
 import dev.nikdekur.ndkore.ext.info
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
-import dev.nikdekur.nexushub.node.ClientNode
 import dev.nikdekur.nexushub.node.NodesService
+import dev.nikdekur.nexushub.node.isNodeExists
 import dev.nikdekur.nexushub.packet.Packet
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
 import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
 class AccountAuthenticationService(
@@ -36,13 +36,13 @@ class AccountAuthenticationService(
 
     override suspend fun executeAuthenticatedPacket(talker: ClientTalker, context: IncomingContext<Packet>) {
         // Authenticated node required
-        val node = nodesService.getAuthenticatedNode(talker)
+        val node = nodesService.getNode(talker)
         if (node == null) {
             talker.closeWithBlock(CloseCode.NOT_AUTHENTICATED)
             return
         }
 
-        node.processAuthenticatedPacket(context)
+        node.processPacket(context)
     }
 
     override suspend fun processAuth(talker: ClientTalker, packet: PacketAuth) {
@@ -80,16 +80,14 @@ class AccountAuthenticationService(
             return
         }
 
-        val node = ClientNode(talker, nodeStr, account)
-        nodesService.addNode(node)
+
+        val node = nodesService.newNode(talker, account, nodeStr)
 
         logger.info { "Authenticated node: $node" }
     }
 
-    val validNodePattern = Regex("[a-zA-Z0-9_]+")
+    val validNodePattern = Regex("[a-zA-Z0-9_-]{4,32}")
     fun isValidNodeName(node: String): Boolean {
-        return validNodePattern.matches(node) && node.length <= 32 && node.length >= 4
+        return validNodePattern.matches(node)
     }
-
-
 }

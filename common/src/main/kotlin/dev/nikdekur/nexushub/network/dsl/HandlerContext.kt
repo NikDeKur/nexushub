@@ -20,7 +20,10 @@ interface HandlerContext<R> {
     interface Responsible<P> : HandlerContext<P> {
         val packet: Packet
 
-        suspend fun <R> respond(packet: Packet, builder: PacketReaction.Builder<R>.() -> Unit = {}): PacketTransmission<R> {
+        suspend fun <R> respond(
+            packet: Packet,
+            builder: PacketReaction.Builder<R>.() -> Unit = {}
+        ): PacketTransmission<R> {
             val reaction = PacketReaction.Builder<R>()
                 .apply(builder)
                 .build()

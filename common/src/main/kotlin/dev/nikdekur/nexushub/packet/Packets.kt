@@ -24,7 +24,9 @@ abstract class Packet {
     private var _sequantial: UShort? = null
     var sequantial: UShort
         get() = _sequantial ?: error("Sequantial is not set")
-        set(value) { _sequantial = value }
+        set(value) {
+            _sequantial = value
+        }
 
     val responseSequential
         get() = sequantial.inc()

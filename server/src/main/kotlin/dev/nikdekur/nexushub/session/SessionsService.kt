@@ -8,17 +8,17 @@
 
 package dev.nikdekur.nexushub.session
 
-import dev.nikdekur.nexushub.node.ClientNode
+import dev.nikdekur.nexushub.node.DefaultNode
 import dev.nikdekur.nexushub.scope.Scope
 
 interface SessionsService {
 
     fun getExistingSession(scopeId: String, holderId: String): Session?
-    fun hasAnySessions(node: ClientNode): Boolean
+    fun hasAnySessions(node: DefaultNode): Boolean
 
-    fun startSession(node: ClientNode, scope: Scope, holderId: String)
+    fun startSession(node: DefaultNode, scope: Scope, holderId: String)
     fun stopSession(scopeId: String, holderId: String)
-    fun stopAllSessions(node: ClientNode)
+    fun stopAllSessions(node: DefaultNode)
 
     suspend fun requestSync(scope: Scope)
 }

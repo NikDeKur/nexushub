@@ -8,13 +8,13 @@
 
 package dev.nikdekur.nexushub.connection.gateway
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.Packet
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration
 
 /**

@@ -6,12 +6,9 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.database.scope
+package dev.nikdekur.nexushub.dataset
 
-interface ScopesTable {
+fun interface DataSetService {
 
-    suspend fun createScope(dao: ScopeDAO)
-    suspend fun findScope(scope: String): ScopeDAO?
-    suspend fun updateScope(scopeDAO: ScopeDAO)
-    suspend fun deleteScope(scope: String)
+    fun getDataSet(): DataSet
 }

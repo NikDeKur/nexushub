@@ -26,7 +26,7 @@ import java.util.*
 class ServerTalker(
     val websocket: DefaultClientWebSocketSession,
     val networkDispatcher: CoroutineDispatcher
-): Talker {
+) : Talker {
 
 
     override val addressHash = websocket.call.request.url.let {

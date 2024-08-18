@@ -8,7 +8,7 @@
 
 package dev.nikdekur.nexushub.auth.account
 
-import dev.nikdekur.nexushub.database.account.AccountDAO
+import dev.nikdekur.nexushub.storage.account.AccountDAO
 import dev.nikdekur.nexushub.protection.Password
 
 interface AccountsService {

@@ -8,7 +8,7 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.database.mongo
+package dev.nikdekur.nexushub.storage.mongo
 
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions

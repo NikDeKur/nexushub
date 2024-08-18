@@ -129,7 +129,6 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
     }
 
 
-
     override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard {
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, "")
 
@@ -160,13 +159,19 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
             receive {
                 logger.error(
                     "Unexpected behaviour while loading top position in scope '$scope', " +
-                            "for field '$field': $packet")
+                            "for field '$field': $packet"
+                )
                 null
             }
         }.await()
     }
 
-    override suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?> {
+    override suspend fun getLeaderboardAndPosition(
+        field: String,
+        startFrom: Int,
+        limit: Int,
+        holderId: String
+    ): Pair<Leaderboard, LeaderboardEntry?> {
         require(holderId.isNotEmpty()) { "positionOf cannot be empty" }
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, holderId)
 
@@ -223,7 +228,6 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
 
         event.respond(savePacket)
     }
-
 
 
     suspend fun processSyncData(event: NetworkEvent.Sync) {

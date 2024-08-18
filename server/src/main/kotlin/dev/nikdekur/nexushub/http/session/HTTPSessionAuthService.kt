@@ -8,6 +8,7 @@
 
 package dev.nikdekur.nexushub.http.session
 
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import dev.nikdekur.nexushub.http.HTTPAuthService
@@ -26,6 +27,8 @@ class HTTPSessionAuthService(
     override val app: NexusHubServer
 ) : NexusHubService, HTTPAuthService {
 
+    val accountsService: AccountsService by inject()
+
     var rootToken: RootToken? = null
 
     override suspend fun login(call: ApplicationCall, request: AuthRequest): Boolean {
@@ -39,7 +42,6 @@ class HTTPSessionAuthService(
             return false
         }
 
-        val accountsService = dev.nikdekur.nexushub.koin.getKoin().get<AccountsService>()
         val root = accountsService.getAccount("root") ?: run {
             call.respondText(
                 text = "Root account is not yet setup. Setup root account in console first.",

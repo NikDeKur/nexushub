@@ -6,7 +6,7 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.database.scope
+package dev.nikdekur.nexushub.storage.scope
 
 import dev.nikdekur.ndkore.`interface`.Snowflake
 import dev.nikdekur.nexushub.util.NexusData

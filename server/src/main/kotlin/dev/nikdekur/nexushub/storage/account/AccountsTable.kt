@@ -6,11 +6,11 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.database.account
+package dev.nikdekur.nexushub.storage.account
 
 import com.mongodb.client.result.DeleteResult
 
-interface AccountsTable  {
+interface AccountsTable {
     suspend fun fetchAllAccounts(): List<AccountDAO>
     suspend fun findAccount(login: String): AccountDAO?
     suspend fun newAccount(dao: AccountDAO)

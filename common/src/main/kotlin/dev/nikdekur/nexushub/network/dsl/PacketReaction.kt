@@ -17,7 +17,6 @@ data class PacketReaction<R>(
 ) {
 
 
-
     class Builder<R> {
         val receiveHandles = HashMap<Class<out Packet>?, ReceiveHandler<out Packet, R>>()
         val timeouts = HashMap<Long, TimeoutHandler<R>>()

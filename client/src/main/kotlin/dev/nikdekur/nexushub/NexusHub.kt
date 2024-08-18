@@ -64,10 +64,10 @@ class NexusHub(
 
 
     /**
-    * Starts the client and connect to NexusHub Server
+     * Starts the client and connect to NexusHub Server
      *
      * Will suspend coroutine until [stop] or [shutdown] is called.
-    */
+     */
     suspend fun start() {
         gateway.start(configuration)
     }
@@ -99,7 +99,6 @@ class NexusHub(
     }
 
 
-
     /**
      * Restarts the service.
      *
@@ -111,9 +110,6 @@ class NexusHub(
     }
 
 
-
-
-
     val services = ConcurrentHashMap<String, NexusService<*, *>>()
     fun addService(service: NexusService<*, *>) {
         services[service.scope] = service
@@ -123,7 +119,6 @@ class NexusHub(
     fun getService(scope: String): NexusService<*, *>? {
         return services[scope]
     }
-
 
 
     inline fun <reified T : Event> on(

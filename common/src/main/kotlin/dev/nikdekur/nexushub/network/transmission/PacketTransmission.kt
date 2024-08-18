@@ -10,12 +10,12 @@ package dev.nikdekur.nexushub.network.transmission
 
 import dev.nikdekur.ndkore.ext.smartAwait
 import dev.nikdekur.ndkore.scheduler.SchedulerTask
-import kotlinx.coroutines.CompletableDeferred
 import dev.nikdekur.nexushub.network.dsl.HandlerContext
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
 import dev.nikdekur.nexushub.network.dsl.ReceiveHandler
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.packet.Packet
+import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.TimeoutException
 
 /**
@@ -71,7 +71,11 @@ data class PacketTransmission<R>(
         }
     }
 
-    internal suspend inline fun <T : Packet> invokeReceiveHandler(talker: Talker, handler: ReceiveHandler<T, R>, packet: T) {
+    internal suspend inline fun <T : Packet> invokeReceiveHandler(
+        talker: Talker,
+        handler: ReceiveHandler<T, R>,
+        packet: T
+    ) {
         try {
             val context = HandlerContext.Receive<T, R>(talker, packet, true)
             result.complete(handler.invoke(context))
@@ -102,7 +106,6 @@ data class PacketTransmission<R>(
 
         invokeReceive(talker, packet)
     }
-
 
 
     suspend fun await(): R {

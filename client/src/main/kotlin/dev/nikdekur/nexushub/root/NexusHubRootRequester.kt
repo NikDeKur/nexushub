@@ -53,11 +53,10 @@ class NexusHubRootRequester(
             }
         }
 
-        install (ContentNegotiation) {
+        install(ContentNegotiation) {
             json()
         }
     }
-
 
 
     fun detach() {
@@ -118,8 +117,6 @@ class NexusHubRootRequester(
         val request = AccountPasswordRequest(login, password)
         request(RootPaths.CHANGE_ACCOUNT_PASSWORD, request)
     }
-
-
 
 
     suspend fun getAccountScopes(login: String): Set<String> {

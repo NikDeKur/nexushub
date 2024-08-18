@@ -10,13 +10,13 @@ package dev.nikdekur.nexushub.network
 
 import dev.nikdekur.ndkore.ext.randInt
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
-import kotlinx.coroutines.CoroutineDispatcher
 import dev.nikdekur.nexushub.network.dsl.HandlerContext
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.serialize.PacketDeserializer
 import dev.nikdekur.nexushub.packet.type.PacketTypes.newInstanceFromId
+import kotlinx.coroutines.CoroutineDispatcher
 import org.slf4j.LoggerFactory
 import java.util.Random
 import java.util.concurrent.ConcurrentHashMap

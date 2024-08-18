@@ -8,13 +8,15 @@
 
 package dev.nikdekur.nexushub.auth.account
 
-import dev.nikdekur.nexushub.database.account.AccountDAO
-import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.ndkore.service.inject
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
-import org.koin.core.component.inject
+import dev.nikdekur.nexushub.service.NexusHubComponent
+import dev.nikdekur.nexushub.storage.account.AccountDAO
 
 data class Account(
+    override val app: NexusHubServer,
     var dao: AccountDAO,
     var password: Password,
     private val _allowedScopes: MutableSet<String>

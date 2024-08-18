@@ -12,7 +12,6 @@ import com.google.gson.GsonBuilder
 import com.google.gson.Strictness
 import com.google.gson.ToNumberPolicy
 import com.google.gson.reflect.TypeToken
-import dev.nikdekur.nexushub.util.NexusData
 import java.lang.reflect.Type
 
 

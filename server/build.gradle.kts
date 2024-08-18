@@ -69,7 +69,6 @@ license {
 }
 
 
-
 // Remove Java compatibility made by params non-null assertions
 tasks.withType<KotlinCompile> {
     compilerOptions {

@@ -11,10 +11,10 @@ package dev.nikdekur.nexushub.service
 import dev.nikdekur.ndkore.ext.info
 import dev.nikdekur.ndkore.ext.input
 import dev.nikdekur.ndkore.ext.trace
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.account.AccountsService
 import kotlinx.coroutines.runBlocking
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
 class SetupService(

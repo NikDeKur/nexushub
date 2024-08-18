@@ -226,7 +226,12 @@ interface NexusService<H, S : ScopeData<S>> {
      * @see [Leaderboard]
      * @see [LeaderboardEntry]
      */
-    suspend fun getLeaderboardAndPosition(field: String, startFrom: Int, limit: Int, holderId: String): Pair<Leaderboard, LeaderboardEntry?>
+    suspend fun getLeaderboardAndPosition(
+        field: String,
+        startFrom: Int,
+        limit: Int,
+        holderId: String
+    ): Pair<Leaderboard, LeaderboardEntry?>
 
 
     /**

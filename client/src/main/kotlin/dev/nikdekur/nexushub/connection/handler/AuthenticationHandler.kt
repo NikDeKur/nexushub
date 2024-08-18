@@ -8,12 +8,12 @@
 
 package dev.nikdekur.nexushub.connection.handler
 
-import kotlinx.coroutines.flow.Flow
 import dev.nikdekur.nexushub.connection.gateway.GatewayConfiguration
 import dev.nikdekur.nexushub.connection.retry.Retry
 import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.event.NetworkEvent
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
+import kotlinx.coroutines.flow.Flow
 
 internal class AuthenticationHandler(
     flow: Flow<Event>,

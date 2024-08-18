@@ -9,28 +9,30 @@
 package dev.nikdekur.nexushub.talker
 
 import dev.nikdekur.ndkore.ext.debug
-import dev.nikdekur.nexushub.koin.NexusHubComponent
+import dev.nikdekur.ndkore.service.inject
+import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.network.PacketManager
 import dev.nikdekur.nexushub.network.addressHash
 import dev.nikdekur.nexushub.network.addressStr
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.Packet
+import dev.nikdekur.nexushub.service.NexusHubComponent
 import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import org.koin.core.component.inject
 import org.slf4j.LoggerFactory
 
 class KtorClientTalker(
+    override val app: NexusHubServer,
     val websocket: DefaultWebSocketServerSession
 ) : ClientTalker, NexusHubComponent {
 
-    val logger = LoggerFactory.getLogger(javaClass)
-
     val talkersService: TalkersService by inject()
+
+    val logger = LoggerFactory.getLogger(javaClass)
 
     override val addressHash = websocket.call.addressHash
     override val addressStr = websocket.call.addressStr
@@ -59,11 +61,9 @@ class KtorClientTalker(
     }
 
     override suspend fun close(code: CloseCode, comment: String) {
+        talkersService.removeTalker(addressHash)
         websocket.close(CloseReason(code.code, comment))
-        talkersService.cleanUp(addressHash)
     }
-
-
 
 
     override fun equals(other: Any?): Boolean {
