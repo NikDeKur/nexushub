@@ -13,7 +13,7 @@ package dev.nikdekur.nexushub.node
 import dev.nikdekur.ndkore.ext.isBlankOrEmpty
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.auth.account.Account
+import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.talker.sendPacket
 import dev.nikdekur.nexushub.packet.*

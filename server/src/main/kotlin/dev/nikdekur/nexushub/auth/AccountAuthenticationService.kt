@@ -12,7 +12,7 @@ import dev.nikdekur.ndkore.ext.delay
 import dev.nikdekur.ndkore.ext.info
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.auth.account.AccountsService
+import dev.nikdekur.nexushub.account.AccountsService
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.node.isNodeExists

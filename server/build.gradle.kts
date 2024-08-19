@@ -20,7 +20,7 @@ val authorId: String by project
 val authorName: String by project
 
 application {
-    mainClass.set("dev.nikdekur.nexushub.NexusHubServerBoot")
+    mainClass.set("dev.nikdekur.nexushub.boot.ConsoleNexusHubServerBoot")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -49,7 +49,11 @@ dependencies {
     implementation(libs.bouncycastle.pkix)
     implementation(libs.guava)
     implementation(libs.koin)
-    testImplementation(libs.kotlin.test.junit)
+
+    testImplementation(kotlin("test"))
+    testImplementation(libs.slf4j.api)
+    testImplementation(libs.slf4j.simple)
+    testImplementation(libs.koin)
 }
 
 val javaVersion = JavaVersion.VERSION_11
@@ -83,4 +87,8 @@ tasks.withType<ShadowJar> {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     destinationDirectory.set(file("jars"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

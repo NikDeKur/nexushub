@@ -14,9 +14,14 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
+import dev.nikdekur.nexushub.storage.request.CompOperator
+import dev.nikdekur.nexushub.storage.request.Filter
+import dev.nikdekur.nexushub.storage.request.Order
+import dev.nikdekur.nexushub.storage.request.Sort
 import kotlinx.coroutines.flow.firstOrNull
+import org.bson.BsonDocument
+import org.bson.Document
 import org.bson.conversions.Bson
-import kotlin.reflect.KProperty
 
 suspend inline fun <reified T : Any> MongoDatabase.ensureCollectionExists(
     name: String,
@@ -38,10 +43,33 @@ suspend inline fun <reified T : Any> MongoDatabase.ensureCollectionExists(
     return collection
 }
 
-inline fun indexOptions(block: IndexOptions.() -> Unit): IndexOptions {
+inline fun mongoIndexOptions(block: IndexOptions.() -> Unit): IndexOptions {
     return IndexOptions().apply(block)
 }
 
+fun Filter.toBson(): Bson {
+    return when (operator) {
+        CompOperator.EQUALS -> Filters.eq(key, value)
+        CompOperator.NOT_EQUALS -> Filters.ne(key, value)
+        CompOperator.GREATER_THAN -> Filters.gt(key, value)
+        CompOperator.LESS_THAN -> Filters.lt(key, value)
+        CompOperator.GREATER_THAN_OR_EQUALS -> Filters.gte(key, value)
+        CompOperator.LESS_THAN_OR_EQUALS -> Filters.lte(key, value)
+    }
+}
 
-inline infix fun String.eq(value: Any): Bson = Filters.eq(this, value)
-inline infix fun <T> KProperty<T>.eq(value: Any): Bson = Filters.eq(this.name, value)
+inline fun Array<out Filter>.toBson(): Bson {
+    if (isEmpty()) return BsonDocument()
+    return Filters.and(map(Filter::toBson))
+}
+
+inline fun Iterable<Filter>.toBson(): Bson {
+    if (none()) return BsonDocument()
+    return Filters.and(map(Filter::toBson))
+}
+
+inline fun Sort.toBson(): Bson {
+    val ascending = order == Order.ASCENDING
+    val num = if (ascending) 1 else -1
+    return Document(field, num)
+}

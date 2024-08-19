@@ -13,7 +13,7 @@ import dev.nikdekur.ndkore.ext.warn
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.auth.AuthenticationService
-import dev.nikdekur.nexushub.auth.account.AccountsService
+import dev.nikdekur.nexushub.account.AccountsService
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.modal.Account
@@ -109,9 +109,9 @@ class Routing(
 
             route("connection") {
 
-                val networkConfig = datasetService.getDataSet().network
-                val pingConfig = networkConfig.ping
-                val rateConfig = networkConfig.rateLimit
+                val dataset = datasetService.getDataSet()
+                val pingConfig = dataset.ping
+                val rateConfig = dataset.network.rateLimit
 
                 val rateLimiter = PeriodRateLimiter(
                     limit = rateConfig.maxRequests,

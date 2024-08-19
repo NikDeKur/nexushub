@@ -14,6 +14,6 @@ import kotlinx.coroutines.flow.Flow
 interface StorageService {
 
     val scope: CoroutineScope
-    fun getAllCollectionsNames(): Flow<String>
-
+    fun getAllTables(): Flow<String>
+    fun <T : Any> getTable(name: String, clazz: Class<T>): StorageTable<T>
 }

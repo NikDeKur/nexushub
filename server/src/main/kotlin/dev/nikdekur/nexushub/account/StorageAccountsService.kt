@@ -6,33 +6,33 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.auth.account
+package dev.nikdekur.nexushub.account
 
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.service.NexusHubService
+import dev.nikdekur.nexushub.storage.StorageService
+import dev.nikdekur.nexushub.storage.StorageTable
 import dev.nikdekur.nexushub.storage.account.AccountDAO
-import dev.nikdekur.nexushub.storage.account.AccountsTable
-import dev.nikdekur.nexushub.storage.mongo.MongoAccountsTable
-import dev.nikdekur.nexushub.storage.mongo.MongoStorageService
-import dev.nikdekur.nexushub.storage.mongo.ensureCollectionExists
-import dev.nikdekur.nexushub.storage.mongo.indexOptions
+import dev.nikdekur.nexushub.storage.index.indexOptions
+import dev.nikdekur.nexushub.storage.mongo.getTable
+import dev.nikdekur.nexushub.storage.request.eq
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.bson.Document
 import java.util.concurrent.ConcurrentHashMap
 
-class TableAccountsService(
-    override val app: NexusHubServer,
-    val database: MongoStorageService
+class StorageAccountsService(
+    override val app: NexusHubServer
 ) : NexusHubService, AccountsService {
 
     val protectionService: ProtectionService by inject()
+    val storage: StorageService by inject()
 
-    lateinit var table: AccountsTable
+    lateinit var table: StorageTable<AccountDAO>
 
     override fun getAccounts(): Collection<Account> {
         return accounts.values
@@ -42,17 +42,12 @@ class TableAccountsService(
 
 
     override fun onLoad(): Unit = runBlocking {
-        table = MongoAccountsTable(
-            database.database.ensureCollectionExists<AccountDAO>("accounts") {
-                val indexOptions = indexOptions {
-                    unique(true)
-                }
+        table = storage.getTable("accounts")
+        table.createIndex("login", mapOf("login" to 1), indexOptions {
+            unique = true
+        })
 
-                createIndex(Document("login", 1), indexOptions)
-            }
-        )
-
-        table.fetchAllAccounts().forEach(::registerAccount)
+        table.find().toList().forEach(::registerAccount)
     }
 
     override fun onUnload() {
@@ -72,11 +67,11 @@ class TableAccountsService(
     }
 
     override suspend fun updateAccount(dao: AccountDAO) {
-        table.updateAccount(dao)
+        table.replaceOne(dao, AccountDAO::login eq dao.login)
     }
 
     suspend fun createAccount(dao: AccountDAO): Account {
-        table.newAccount(dao)
+        table.insertOne(dao)
         return registerAccount(dao)
     }
 
@@ -104,7 +99,8 @@ class TableAccountsService(
      * @param login The login of the account to delete.
      */
     override suspend fun deleteAccount(login: String) {
-        table.deleteAccount(login)
+        val filter = "login" eq login
+        table.deleteOne(filter)
         accounts.remove(login)
     }
 

@@ -10,7 +10,7 @@ package dev.nikdekur.nexushub.network.auth
 
 import dev.nikdekur.ndkore.annotation.DelicateAPI
 import dev.nikdekur.ndkore.service.getService
-import dev.nikdekur.nexushub.NexusHubServerBoot
+import dev.nikdekur.nexushub.KtorNexusHubServer
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.createRouteScopedPlugin
@@ -22,7 +22,7 @@ val TokenAuthenticationPlugin = createRouteScopedPlugin("TokenAuthentication") {
     onCall {
         it.request.origin.apply {
 
-            val authService = NexusHubServerBoot.instance.servicesManager.getService<HTTPAuthService>()
+            val authService = KtorNexusHubServer.instance.servicesManager.getService<HTTPAuthService>()
             val auth = authService.ensureAuthenticated(it)
             when (auth) {
                 HTTPAuthService.EnsureAuthResponse.AUTHENTICATED -> {

@@ -8,16 +8,20 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.storage.mongo.scope
+package dev.nikdekur.nexushub.scope
 
-import com.mongodb.client.model.Filters
-import com.mongodb.kotlin.client.coroutine.MongoCollection
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.scope.ScopesService
 import dev.nikdekur.nexushub.service.NexusHubComponent
 import dev.nikdekur.nexushub.storage.StorageService
-import dev.nikdekur.nexushub.storage.mongo.indexOptions
+import dev.nikdekur.nexushub.storage.StorageTable
+import dev.nikdekur.nexushub.storage.index.indexOptions
+import dev.nikdekur.nexushub.storage.request.Filter
+import dev.nikdekur.nexushub.storage.request.Order
+import dev.nikdekur.nexushub.storage.request.Sort
+import dev.nikdekur.nexushub.storage.request.eq
+import dev.nikdekur.nexushub.storage.request.gt
+import dev.nikdekur.nexushub.storage.request.ne
 import dev.nikdekur.nexushub.storage.scope.ScopeDAO
 import dev.nikdekur.nexushub.storage.scope.ScopeTable
 import dev.nikdekur.nexushub.util.NexusData
@@ -26,16 +30,15 @@ import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import org.bson.Document
-import org.bson.conversions.Bson
 import org.slf4j.LoggerFactory
 
-class MongoScopeTable(
+class StorageScopeTable(
     override val app: NexusHubServer,
     /**
      * The id of the scope
      */
     override val id: String,
-    val collection: MongoCollection<Document>,
+    val table: StorageTable<NexusData>,
     override var data: ScopeDAO
 ) : ScopeTable, NexusHubComponent {
 
@@ -46,7 +49,7 @@ class MongoScopeTable(
 
     override suspend fun findOrNull(holderId: String): NexusData? {
         val filter = idFilter(holderId)
-        return collection.find(filter)
+        return table.find(listOf(filter))
             .singleOrNull()
             ?.let {
                 HashMap(it)
@@ -66,7 +69,7 @@ class MongoScopeTable(
 
         // If the new data is empty and old data exists, delete the data
         if (old != null && data.isEmpty()) {
-            collection.deleteOne(idFilter(holderId))
+            table.deleteOne(idFilter(holderId))
             return
         }
 
@@ -76,26 +79,23 @@ class MongoScopeTable(
 
         // If the old data does not exist, insert the new data
         if (old == null) {
-            collection.insertOne(dataDocument)
+            table.insertOne(dataDocument)
         } else {
             // If the old data exists, update the data
-            collection.replaceOne(idFilter(holderId), dataDocument)
+            table.replaceOne(dataDocument, idFilter(holderId))
         }
     }
 
 
-    inline fun idFilter(holderId: String): Bson {
-        return Filters.eq("holderId", holderId)
+    inline fun idFilter(holderId: String): Filter {
+        return "holderId" eq holderId
     }
 
 
-    override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): List<Document> {
+    override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): List<NexusData> {
         ensureIndexAsync(field)
-        return collection
-            .find()
-            .sort(Document(field, -1))
-            .limit(limit)
-            .skip(startFrom)
+        return table
+            .find(sort = Sort(field, Order.DESCENDING), limit = limit, skip = startFrom)
             .toList()
     }
 
@@ -116,11 +116,11 @@ class MongoScopeTable(
         // And the holderId is not the given holderId (to exclude the given holderId)
         logger.info("[$id] Getting top position for $holderId with $field > $value")
         ensureIndexAsync(field)
-        val filter = Filters.and(
-            Filters.gt(field, value),
-            Filters.ne("holderId", holderId)
+        val filters = arrayOf(
+            field gt value,
+            "holderId" ne holderId
         )
-        val count = collection.countDocuments(filter)
+        val count = table.count(*filters)
         return count
     }
 
@@ -137,8 +137,8 @@ class MongoScopeTable(
     }
 
     suspend fun createIndex(field: String, unique: Boolean) {
-        collection.createIndex(Document(field, 1), indexOptions {
-            unique(unique)
+        table.createIndex(field, mapOf("holderId" to 1), indexOptions {
+            this.unique = unique
         })
     }
 

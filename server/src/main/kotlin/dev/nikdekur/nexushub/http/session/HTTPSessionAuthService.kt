@@ -10,7 +10,7 @@ package dev.nikdekur.nexushub.http.session
 
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.auth.account.AccountsService
+import dev.nikdekur.nexushub.account.AccountsService
 import dev.nikdekur.nexushub.http.HTTPAuthService
 import dev.nikdekur.nexushub.http.HTTPAuthService.EnsureAuthResponse
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest

@@ -17,19 +17,18 @@ import java.util.concurrent.TimeUnit
 @Serializable
 data class DataSetConfig(
     override val network: Network,
-    override val cache: Cache
+    override val cache: Cache,
+    override val ping: Ping,
+    override val shutdown: Shutdown
 ) : DataSet {
 
     @Serializable
     class Network(
         override val port: Int,
         override val ssl: SSL? = null,
-        override val ping: Ping,
 
         @SerialName("rate_limit")
         override val rateLimit: RateLimit,
-
-        override val shutdown: Shutdown
     ) : DataSet.Network {
 
         @Serializable
@@ -37,17 +36,6 @@ data class DataSetConfig(
             override val cert: String,
             override val key: String
         ) : DataSet.Network.SSL
-
-
-        @Serializable
-        data class Ping(
-            @YamlComment("The interval in seconds between pings")
-            override val interval: Int,
-
-            @YamlComment("The extra interval in milliseconds to wait before considering a node dead")
-            @SerialName("extra_interval")
-            override val extraInterval: Int,
-        ) : DataSet.Network.Ping
 
 
         @Serializable
@@ -61,23 +49,6 @@ data class DataSetConfig(
             override val timeWindow: Int
         ) : DataSet.Network.RateLimit
 
-
-        @Serializable
-        data class Shutdown(
-            @SerialName("grace_period")
-            override val gracePeriod: Long = 5000L,
-
-
-            override val timeout: Long = 10000L,
-
-
-            @SerialName("unit")
-            private val _unit: String = "MILLISECONDS"
-        ) : DataSet.Network.Shutdown {
-
-            override val unit: TimeUnit
-                get() = TimeUnit.valueOf(_unit.uppercase())
-        }
     }
 
     @Serializable
@@ -91,4 +62,32 @@ data class DataSetConfig(
         @SerialName("cache_max_size")
         override val cacheMaxSize: Long = 1000,
     ) : DataSet.Cache
+
+
+    @Serializable
+    data class Ping(
+        @YamlComment("The interval in seconds between pings")
+        override val interval: Int,
+
+        @YamlComment("The extra interval in milliseconds to wait before considering a node dead")
+        @SerialName("extra_interval")
+        override val extraInterval: Int,
+    ) : DataSet.Ping
+
+    @Serializable
+    data class Shutdown(
+        @SerialName("grace_period")
+        override val gracePeriod: Long = 5000L,
+
+
+        override val timeout: Long = 10000L,
+
+
+        @SerialName("unit")
+        private val _unit: String = "MILLISECONDS"
+    ) : DataSet.Shutdown {
+
+        override val unit: TimeUnit
+            get() = TimeUnit.valueOf(_unit.uppercase())
+    }
 }

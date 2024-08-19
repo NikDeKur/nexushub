@@ -19,6 +19,7 @@ import dev.nikdekur.ndkore.ext.info
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.StorageService
+import dev.nikdekur.nexushub.storage.StorageTable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,8 +87,15 @@ class MongoStorageService(
     }
 
 
-    override fun getAllCollectionsNames(): Flow<String> {
+    override fun getAllTables(): Flow<String> {
         return database.listCollectionNames()
     }
 
+    override fun <T : Any> getTable(name: String, clazz: Class<T>): StorageTable<T> {
+        return MongoStorageTable(database.getCollection(name, clazz))
+    }
+}
+
+inline fun <reified T : Any> StorageService.getTable(name: String): StorageTable<T> {
+    return getTable(name, T::class.java)
 }

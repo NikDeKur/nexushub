@@ -9,7 +9,6 @@
 package dev.nikdekur.nexushub.scope
 
 import dev.nikdekur.nexushub.storage.scope.ScopeDAO
-import dev.nikdekur.nexushub.storage.scope.ScopeTable
 
 interface ScopesService {
 
@@ -24,9 +23,6 @@ interface ScopesService {
      * @return scope
      */
     suspend fun getScope(scopeId: String): Scope
-
-
-    suspend fun getScopeCollection(name: String): ScopeTable
 
     suspend fun findScopeData(scopeId: String): ScopeDAO?
     suspend fun createScopeData(data: ScopeDAO)

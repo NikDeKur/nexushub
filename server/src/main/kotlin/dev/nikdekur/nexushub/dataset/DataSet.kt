@@ -14,23 +14,19 @@ interface DataSet {
 
     val network: Network
     val cache: Cache
+    val ping: Ping
+    val shutdown: Shutdown
 
     interface Network {
         val port: Int
         val ssl: SSL?
-        val ping: Ping
         val rateLimit: RateLimit
-        val shutdown: Shutdown
 
         interface SSL {
             val cert: String
             val key: String
         }
 
-        interface Ping {
-            val interval: Int
-            val extraInterval: Int
-        }
 
         interface RateLimit {
             /**
@@ -44,22 +40,7 @@ interface DataSet {
             val timeWindow: Int
         }
 
-        interface Shutdown {
-            /**
-             * Grace period to wait for all connections to close before shutting down in specified unit
-             */
-            val gracePeriod: Long
 
-            /**
-             * Timeout to wait for all connections to close before shutting down in specified unit
-             */
-            val timeout: Long
-
-            /**
-             * Unit of grace period and timeout
-             */
-            val unit: TimeUnit
-        }
     }
 
     interface Cache {
@@ -72,5 +53,27 @@ interface DataSet {
          * Maximum number of cached holder data by each scope
          */
         val cacheMaxSize: Long
+    }
+
+    interface Ping {
+        val interval: Int
+        val extraInterval: Int
+    }
+
+    interface Shutdown {
+        /**
+         * Grace period to wait for all connections to close before shutting down in specified unit
+         */
+        val gracePeriod: Long
+
+        /**
+         * Timeout to wait for all connections to close before shutting down in specified unit
+         */
+        val timeout: Long
+
+        /**
+         * Unit of grace period and timeout
+         */
+        val unit: TimeUnit
     }
 }

@@ -8,12 +8,10 @@
 
 package dev.nikdekur.nexushub.storage.account
 
-import com.mongodb.client.result.DeleteResult
-
 interface AccountsTable {
     suspend fun fetchAllAccounts(): List<AccountDAO>
     suspend fun findAccount(login: String): AccountDAO?
     suspend fun newAccount(dao: AccountDAO)
     suspend fun updateAccount(dao: AccountDAO)
-    suspend fun deleteAccount(login: String): DeleteResult
+    suspend fun deleteAccount(login: String)
 }

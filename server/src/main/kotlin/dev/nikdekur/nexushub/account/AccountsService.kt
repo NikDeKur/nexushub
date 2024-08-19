@@ -6,10 +6,10 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.auth.account
+package dev.nikdekur.nexushub.account
 
-import dev.nikdekur.nexushub.storage.account.AccountDAO
 import dev.nikdekur.nexushub.protection.Password
+import dev.nikdekur.nexushub.storage.account.AccountDAO
 
 interface AccountsService {
 

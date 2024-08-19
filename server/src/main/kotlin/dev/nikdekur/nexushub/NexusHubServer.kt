@@ -10,6 +10,8 @@ package dev.nikdekur.nexushub
 
 import dev.nikdekur.ndkore.`interface`.Snowflake
 import dev.nikdekur.ndkore.service.ServicesManager
+import dev.nikdekur.nexushub.boot.Environment
+import dev.nikdekur.nexushub.service.NexusHubComponent
 import org.slf4j.Logger
 import kotlin.time.Duration
 
@@ -18,7 +20,15 @@ import kotlin.time.Duration
  *
  * This interface allows creating different implementations of the server.
  */
-interface NexusHubServer : Snowflake<String> {
+interface NexusHubServer : NexusHubComponent, Snowflake<String> {
+
+    override val id: String
+        get() = javaClass.simpleName
+
+    override val app: NexusHubServer
+        get() = this
+
+    val environment: Environment
 
     /**
      * The logger for the server.
@@ -41,8 +51,14 @@ interface NexusHubServer : Snowflake<String> {
      * Starts the server.
      *
      * Function should block until the server is stopped.
-     *
-     * @param args The arguments passed to the server.
      */
-    fun start(args: Array<String>)
+    fun start()
+
+    /**
+     * Stops the server.
+     *
+     * @param gracePeriod The grace period to allow for the server to stop gracefully.
+     * @param timeout The timeout to wait for the server to stop.
+     */
+    fun stop(gracePeriod: Duration, timeout: Duration)
 }

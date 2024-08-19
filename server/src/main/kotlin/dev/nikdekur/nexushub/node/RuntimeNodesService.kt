@@ -12,7 +12,7 @@ import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import dev.nikdekur.ndkore.service.Dependencies
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.auth.account.Account
+import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.service.NexusHubService
@@ -45,7 +45,7 @@ class RuntimeNodesService(
 
     override fun onLoad() {
         scope = CoroutineScheduler.fromSupervisor(Dispatchers.Default)
-        val config = datasetService.getDataSet().network.ping
+        val config = datasetService.getDataSet().ping
         val interval = config.interval * 1000L
         val deadInterval = interval + config.extraInterval
 
