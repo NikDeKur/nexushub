@@ -100,6 +100,7 @@ class RuntimeStorageTable<T : Any> : StorageTable<T> {
     }
 
     private fun applySort(sequence: Sequence<T>, sort: Sort): Sequence<T> {
+        @Suppress("UNCHECKED_CAST")
         val comparator = Comparator<T> { a, b ->
             val valueA = a::class.members.first { it.name == sort.field }.call(a) as Comparable<Any>
             val valueB = b::class.members.first { it.name == sort.field }.call(b) as Comparable<Any>

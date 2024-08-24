@@ -16,7 +16,6 @@ plugins {
 group = "dev.nikdekur.nexushub"
 version = "1.2.0"
 
-val authorId: String by project
 val authorName: String by project
 
 application {
@@ -85,8 +84,6 @@ tasks.withType<ShadowJar> {
     archiveFileName.set("${project.name}-${project.version}.jar")
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    destinationDirectory.set(file("jars"))
 }
 
 tasks.test {

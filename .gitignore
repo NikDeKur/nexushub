@@ -32,9 +32,8 @@ out/
 
 ### Gradle ###
 .gradle/
+.kotlin/
 build/
-gradlew.bat
-gradlew
 client/build/
 client/.gradle/
 common/build/
