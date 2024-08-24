@@ -14,13 +14,12 @@ import dev.nikdekur.ndkore.service.dependencies
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.account.AccountsService
-import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 
 class EnvironmentSetupService(
     override val app: NexusHubServer
-) : NexusHubService, SetupService {
+) : SetupService {
 
     override val dependencies = dependencies {
         after(AccountsService::class)
@@ -30,7 +29,7 @@ class EnvironmentSetupService(
 
     val accountsService: AccountsService by inject()
 
-    override fun onLoad() {
+    override fun onEnable() {
         runBlocking {
             rootCreationProtocol()
         }

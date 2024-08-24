@@ -43,6 +43,8 @@ import dev.nikdekur.nexushub.util.NexusData
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import org.slf4j.LoggerFactory
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 
 class DefaultNode(
@@ -68,11 +70,6 @@ class DefaultNode(
 
     override suspend fun processPacket(context: IncomingContext<out Packet>) {
         val packet = context.packet
-
-        // Drop a packet if it's a response.
-        // All responses are handled by code sending the request
-        if (context.isResponse)
-            return
 
         @Suppress("UNCHECKED_CAST")
         when (packet) {
@@ -350,7 +347,7 @@ class DefaultNode(
                 }
             }
 
-            timeout(5000) {}
+            timeout(5.seconds) {}
 
             exception {
                 logger.error("Exception occurred while syncing data: $exception")
@@ -387,7 +384,7 @@ class DefaultNode(
                 logger.warn("Unexpected behaviour while global syncing data: ${this.packet}")
             }
 
-            timeout(5000) {
+            timeout(5.seconds) {
                 logger.warn("Timeout while global syncing data for scope ${scope.id} with node $id")
             }
 
@@ -398,11 +395,11 @@ class DefaultNode(
     }
 
 
-    fun isAlive(pingInterval: Long): Boolean {
+    override fun isAlive(deadInterval: Duration): Boolean {
         val currentTime = System.currentTimeMillis()
         val timeDiff = currentTime - maxOf(latestPingTime, createdAt)
 
-        return timeDiff < pingInterval
+        return timeDiff < deadInterval.inWholeMilliseconds
     }
 
 

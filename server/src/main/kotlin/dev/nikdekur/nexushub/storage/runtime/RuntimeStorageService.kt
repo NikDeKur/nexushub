@@ -1,7 +1,14 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2024-present "Nik De Kur"
+ */
+
 package dev.nikdekur.nexushub.storage.runtime
 
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.StorageTable
 import kotlinx.coroutines.CoroutineScope
@@ -14,17 +21,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 class RuntimeStorageService(
     override val app: NexusHubServer
-) : NexusHubService, StorageService {
+) : StorageService {
 
     override lateinit var scope: CoroutineScope
 
     val tables = ConcurrentHashMap<String, RuntimeStorageTable<*>>()
 
-    override fun onLoad() {
+    override fun onEnable() {
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }
 
-    override fun onUnload() {
+    override fun onDisable() {
         scope.cancel()
     }
 

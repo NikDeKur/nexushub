@@ -13,6 +13,11 @@ import dev.nikdekur.nexushub.packet.serialize.PacketDeserializer
 import dev.nikdekur.nexushub.packet.serialize.PacketSerializer
 import dev.nikdekur.nexushub.packet.type.PacketTypes
 
+/**
+ * A Server responds to a heartbeat packet with this packet.
+ *
+ * The Packet means to client that heartbeat was received and the connection is still alive.
+ */
 class PacketHeartbeatACK : Packet() {
     override val packetId = PacketTypes.HEARTBEAT_ACK.id
 

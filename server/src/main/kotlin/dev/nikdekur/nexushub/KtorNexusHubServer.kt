@@ -16,8 +16,8 @@ import dev.nikdekur.ndkore.service.getService
 import dev.nikdekur.nexushub.boot.Environment
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.config.ConfigDataSetService
+import dev.nikdekur.nexushub.dataset.get
 import dev.nikdekur.nexushub.network.Routing
-import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.mongo.MongoStorageService
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -34,37 +34,29 @@ import java.security.PrivateKey
 import java.security.cert.X509Certificate
 import kotlin.time.Duration
 
+data class SSL(
+    val cert: String,
+    val key: String
+)
+
 class KtorNexusHubServer(
     override val environment: Environment
 ) : AbstractNexusHubServer() {
 
     lateinit var server: EmbeddedServer<*, *>
 
-    override fun buildDataSetService(): DataSetService {
-        // Config Part start
-        val configPath = environment.getValue("config") ?: "config.yml"
-        val configFile = File(configPath)
-        require(configFile.exists()) { "Config file not found!" }
-        // Config Part end
-
-        return ConfigDataSetService(this@KtorNexusHubServer, configFile)
-    }
-
-    override fun buildStorageService(): StorageService {
-        return MongoStorageService(this)
-    }
+    override fun buildDataSetService() = ConfigDataSetService(this@KtorNexusHubServer)
+    override fun buildStorageService() = MongoStorageService(this)
 
 
     override fun start() {
         super.start()
 
         val dataset = servicesManager.getService<DataSetService>()
-            .getDataSet()
 
-        val networkDataSet = dataset.network
-        val ssl = networkDataSet.ssl
+        val port = dataset.get<Int>("port") ?: 8080
 
-
+        val ssl = dataset.get<SSL>("ssl")
         val keyStore = ssl?.let {
             createKeyStore(
                 File(it.key),
@@ -88,16 +80,16 @@ class KtorNexusHubServer(
                 ) {}
 
             connector {
-                port = networkDataSet.port
+                this.port = port
             }
         })
 
         val routing = Routing(this, server.application)
-        routing.onLoad()
+        routing.onEnable()
 
         addShutdownHook {
             logger.info("Unloading routing...")
-            routing.onUnload()
+            routing.onDisable()
             logger.info("Unloaded routing.")
         }
 

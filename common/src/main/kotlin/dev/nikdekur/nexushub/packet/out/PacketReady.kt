@@ -13,22 +13,28 @@ import dev.nikdekur.nexushub.packet.serialize.PacketDeserializer
 import dev.nikdekur.nexushub.packet.serialize.PacketSerializer
 import dev.nikdekur.nexushub.packet.type.PacketTypes
 
+/**
+ * Packet sent by the server to the client
+ * to indicate that authentication is successful and the client may start sending packets.
+ *
+ * @property heartbeatInterval The interval in milliseconds for the client to send heartbeat packets.
+ */
 class PacketReady : Packet {
     override val packetId = PacketTypes.READY.id
 
     constructor() : super()
-    constructor(heartbeatInterval: Int) : super() {
+    constructor(heartbeatInterval: Long) : super() {
         this.heartbeatInterval = heartbeatInterval
     }
 
-    var heartbeatInterval: Int = 0
+    var heartbeatInterval: Long = 0
 
     override fun deserialize(deserializer: PacketDeserializer) {
-        heartbeatInterval = deserializer.readInt()
+        heartbeatInterval = deserializer.readLong()
     }
 
     override fun serialize(serializer: PacketSerializer) {
-        serializer.writeInt(heartbeatInterval)
+        serializer.writeLong(heartbeatInterval)
     }
 
     override fun toString(): String {

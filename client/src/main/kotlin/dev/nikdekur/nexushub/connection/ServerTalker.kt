@@ -10,6 +10,7 @@
 
 package dev.nikdekur.nexushub.connection
 
+import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.PacketManager
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.talker.Talker
@@ -21,30 +22,18 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.withContext
-import java.util.*
 
 class ServerTalker(
     val websocket: DefaultClientWebSocketSession,
-    val networkDispatcher: CoroutineDispatcher
+    val networkDispatcher: CoroutineDispatcher,
+    override val address: Address
 ) : Talker {
-
-
-    override val addressHash = websocket.call.request.url.let {
-        Objects.hash(it.host, it.port)
-    }
-
-    override val addressStr = websocket.call.request.url.let {
-        "${it.host}:${it.port}"
-    }
 
 
     val packetManager = PacketManager(this, networkDispatcher)
 
     override val isOpen: Boolean
         get() = websocket.closeReason.isActive && (!websocket.outgoing.isClosedForSend && !websocket.incoming.isClosedForReceive)
-
-    val isClosed: Boolean
-        get() = !websocket.closeReason.isActive
 
     override suspend fun send(transmission: PacketTransmission<*>) {
         withContext(networkDispatcher) {

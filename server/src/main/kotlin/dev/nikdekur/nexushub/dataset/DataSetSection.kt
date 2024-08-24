@@ -8,7 +8,12 @@
 
 package dev.nikdekur.nexushub.dataset
 
-import dev.nikdekur.nexushub.service.NexusHubService
+import kotlin.reflect.KClass
 
-interface DataSetService : NexusHubService, DataSetSection
+interface DataSetSection {
+    fun getSection(key: String): DataSetSection?
+    fun <T : Any> get(key: String, clazz: KClass<T>): T?
+}
 
+
+inline fun <reified T : Any> DataSetSection.get(key: String) = get(key, T::class)

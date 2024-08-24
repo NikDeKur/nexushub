@@ -8,33 +8,37 @@
 
 package dev.nikdekur.nexushub.dataset.config
 
-import com.charleskorn.kaml.Yaml
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.dataset.DataSet
 import dev.nikdekur.nexushub.dataset.DataSetService
-import dev.nikdekur.nexushub.service.NexusHubService
-import kotlinx.serialization.decodeFromString
+import dev.nikdekur.nexushub.dataset.map.MapDataSetService
+import net.mamoe.yamlkt.Yaml
 import java.io.File
+import kotlin.reflect.KClass
 
 class ConfigDataSetService(
-    override val app: NexusHubServer,
-    val configFile: File
-) : NexusHubService, DataSetService {
+    override val app: NexusHubServer
+) : DataSetService {
 
-    var config: DataSetConfig? = null
+    private var _delegate: MapDataSetService? = null
+    val delegate
+        get() = _delegate ?: error("Config not loaded!")
 
-    override fun onLoad() {
-        config = configFile.readText().let {
-            Yaml.default.decodeFromString<DataSetConfig>(it)
-        }
+    override fun onEnable() {
+        val configPath = app.environment.getValue("config") ?: "config.yml"
+        val configFile = File(configPath)
+        require(configFile.exists()) { "Config file not found!" }
+
+        @Suppress("UNCHECKED_CAST")
+        _delegate = MapDataSetService(
+            app,
+            Yaml.decodeMapFromString(configFile.readText()) as Map<String, Any>
+        )
     }
 
-    override fun onUnload() {
-        config = null
+    override fun onDisable() {
+        _delegate = null
     }
 
-
-    override fun getDataSet(): DataSet {
-        return config ?: error("Service not loaded or config load failed")
-    }
+    override fun <T : Any> get(key: String, clazz: KClass<T>) = delegate[key, clazz]
+    override fun getSection(key: String) = delegate.getSection(key)
 }

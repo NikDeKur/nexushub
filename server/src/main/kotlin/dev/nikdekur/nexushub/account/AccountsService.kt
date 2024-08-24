@@ -9,9 +9,10 @@
 package dev.nikdekur.nexushub.account
 
 import dev.nikdekur.nexushub.protection.Password
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.account.AccountDAO
 
-interface AccountsService {
+interface AccountsService : NexusHubService {
 
     fun getAccounts(): Collection<Account>
 

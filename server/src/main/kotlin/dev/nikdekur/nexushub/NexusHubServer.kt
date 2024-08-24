@@ -28,6 +28,7 @@ interface NexusHubServer : NexusHubComponent, Snowflake<String> {
     override val app: NexusHubServer
         get() = this
 
+
     val environment: Environment
 
     /**
@@ -38,7 +39,7 @@ interface NexusHubServer : NexusHubComponent, Snowflake<String> {
     /**
      * The services manager for the server.
      */
-    val servicesManager: ServicesManager<NexusHubServer>
+    val servicesManager: ServicesManager
 
     /**
      * The uptime of the server.

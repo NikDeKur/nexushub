@@ -9,17 +9,18 @@
 package dev.nikdekur.nexushub.network.dsl
 
 import dev.nikdekur.nexushub.packet.Packet
+import kotlin.time.Duration
 
 data class PacketReaction<R>(
     val receiveHandles: MutableMap<Class<out Packet>?, ReceiveHandler<Packet, R>>,
-    val timeouts: MutableMap<Long, TimeoutHandler<R>>,
+    val timeouts: MutableMap<Duration, TimeoutHandler<R>>,
     val onException: ExceptionHandler<R>?
 ) {
 
 
     class Builder<R> {
         val receiveHandles = HashMap<Class<out Packet>?, ReceiveHandler<out Packet, R>>()
-        val timeouts = HashMap<Long, TimeoutHandler<R>>()
+        val timeouts = HashMap<Duration, TimeoutHandler<R>>()
         var onException: ExceptionHandler<R>? = null
 
 
@@ -39,12 +40,12 @@ data class PacketReaction<R>(
         }
 
         @PacketReactionDSL
-        fun timeout(timeout: Long, block: TimeoutHandler<R>) {
+        fun timeout(timeout: Duration, block: TimeoutHandler<R>) {
             timeouts[timeout] = block
         }
 
         @PacketReactionDSL
-        fun throwOnTimeout(timeout: Long) {
+        fun throwOnTimeout(timeout: Duration) {
             timeouts[timeout] = {
                 throw Exception("Timeout while waiting for packet")
             }

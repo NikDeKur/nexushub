@@ -6,13 +6,8 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.talker
+package dev.nikdekur.nexushub.storage.mongo
 
-import dev.nikdekur.nexushub.network.talker.Talker
-
-interface TalkersService {
-
-    fun getExistingTalker(address: Int): Talker?
-    fun setTalker(address: Int, talker: Talker)
-    fun removeTalker(talker: Int)
-}
+data class MongoDataSet(
+    val url: String
+)

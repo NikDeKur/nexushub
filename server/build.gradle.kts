@@ -43,7 +43,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.ndkore)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kaml)
+    implementation(libs.yamlkt)
     implementation(libs.mongodb)
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)

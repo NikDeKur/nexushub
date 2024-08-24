@@ -8,6 +8,7 @@
 
 package dev.nikdekur.nexushub.network.talker
 
+import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
@@ -16,10 +17,11 @@ import dev.nikdekur.nexushub.util.CloseCode
 
 interface Talker {
 
-    val addressHash: Int
-    val addressStr: String
+    val address: Address
 
     val isOpen: Boolean
+    val isClosed: Boolean
+        get() = !isOpen
 
 
     suspend fun send(transmission: PacketTransmission<*>)
@@ -45,3 +47,9 @@ suspend inline fun <R> Talker.sendPacket(
     send(transmission)
     return transmission
 }
+
+@JvmName("sendPacketUnit")
+suspend inline fun Talker.sendPacket(
+    packet: Packet,
+    reaction: PacketReaction.Builder<Unit>.() -> Unit = {}
+) = sendPacket<Unit>(packet, reaction)

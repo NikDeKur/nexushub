@@ -8,24 +8,11 @@
 
 package dev.nikdekur.nexushub
 
-import dev.nikdekur.nexushub.boot.Environment
-import dev.nikdekur.nexushub.dataset.DataSetService
-import dev.nikdekur.nexushub.storage.StorageService
 import kotlin.time.Duration
 
-open class TestNexusHubServer(
-    override val environment: Environment,
-    val dataSetService: (TestNexusHubServer) -> DataSetService,
-    val storageService: (TestNexusHubServer) -> StorageService
-) : AbstractNexusHubServer() {
+abstract class TestNexusHubServer : AbstractNexusHubServer() {
 
-    override fun buildDataSetService(): DataSetService {
-        return dataSetService(this)
-    }
 
-    override fun buildStorageService(): StorageService {
-        return storageService(this)
-    }
 
     override fun start() {
         super.start()

@@ -8,82 +8,51 @@
 
 package dev.nikdekur.nexushub.auth
 
-import dev.nikdekur.ndkore.ext.delay
-import dev.nikdekur.ndkore.ext.info
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.account.AccountsService
-import dev.nikdekur.nexushub.network.dsl.IncomingContext
+import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.node.isNodeExists
-import dev.nikdekur.nexushub.packet.Packet
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
-import dev.nikdekur.nexushub.protection.ProtectionService
-import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.ClientTalker
-import dev.nikdekur.nexushub.util.CloseCode
 import org.slf4j.LoggerFactory
 
 class AccountAuthenticationService(
     override val app: NexusHubServer
-) : NexusHubService, AuthenticationService {
+) : AuthenticationService {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
     val nodesService: NodesService by inject()
-    val protectionService: ProtectionService by inject()
     val accountsService: AccountsService by inject()
 
-    override suspend fun executeAuthenticatedPacket(talker: ClientTalker, context: IncomingContext<Packet>) {
-        // Authenticated node required
-        val node = nodesService.getNode(talker)
-        if (node == null) {
-            talker.closeWithBlock(CloseCode.NOT_AUTHENTICATED)
-            return
-        }
-
-        node.processPacket(context)
-    }
-
-    override suspend fun processAuth(talker: ClientTalker, packet: PacketAuth) {
-        logger.info { "Authenticating node: ${packet.node}" }
-
+    override suspend fun authenticate(talker: ClientTalker, packet: PacketAuth): AuthResult {
         val account = accountsService.getAccount(packet.login)
-        if (account == null) {
-            // Imitate hashing delay to hacker think login exists
-            logger.info { "Account not found: ${packet.login}" }
-            delay(protectionService.averageEncryptionTime())
-            talker.closeWithBlock(CloseCode.WRONG_CREDENTIALS)
-            return
-        }
+        if (account == null)
+            return AuthResult.AccountNotFound
+
 
         val isCorrect = accountsService.matchPassword(account.password, packet.password)
-        if (!isCorrect) {
-            logger.info { "Incorrect password for account: ${packet.login}" }
-            talker.closeWithBlock(CloseCode.WRONG_CREDENTIALS)
-            return
-        }
+        if (!isCorrect)
+            return AuthResult.WrongCredentials
+
 
         val nodeStr = packet.node
-        if (!isValidNodeName(nodeStr)) {
-            talker.closeWithBlock(CloseCode.INVALID_DATA, "Provided node name is not valid")
-            return
-        }
+        if (!isValidNodeName(nodeStr))
+            return AuthResult.NodeNameInvalid
 
-        if (nodesService.isNodeExists(talker)) {
-            talker.closeWithBlock(CloseCode.NODE_ALREADY_EXISTS, "Node at exact same address already exists")
-            return
-        }
 
-        if (nodesService.isNodeExists(nodeStr)) {
-            talker.closeWithBlock(CloseCode.NODE_ALREADY_EXISTS, "Node with this id already exists")
-            return
-        }
+        if (nodesService.isNodeExists(talker))
+            return AuthResult.NodeAtAddressAlreadyExists
+
+
+        if (nodesService.isNodeExists(nodeStr))
+            return AuthResult.NodeAlreadyExists
 
 
         val node = nodesService.newNode(talker, account, nodeStr)
-
-        logger.info { "Authenticated node: $node" }
+        return AuthResult.Success(node)
     }
 
     val validNodePattern = Regex("[a-zA-Z0-9_-]{4,32}")

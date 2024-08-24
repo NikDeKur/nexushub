@@ -16,7 +16,7 @@ import java.security.SecureRandom
 import kotlin.random.Random
 
 
-object PasswordEncryptor {
+object Argon2Encryptor {
 
 
     const val SALT_SIZE = 16

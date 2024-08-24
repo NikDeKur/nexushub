@@ -8,9 +8,10 @@
 
 package dev.nikdekur.nexushub.scope
 
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.scope.ScopeDAO
 
-interface ScopesService {
+interface ScopesService : NexusHubService {
 
     suspend fun reloadScopes()
 

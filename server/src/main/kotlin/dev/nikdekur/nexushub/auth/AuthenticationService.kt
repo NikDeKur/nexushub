@@ -8,14 +8,22 @@
 
 package dev.nikdekur.nexushub.auth
 
-import dev.nikdekur.nexushub.network.dsl.IncomingContext
-import dev.nikdekur.nexushub.packet.Packet
+import dev.nikdekur.nexushub.node.Node
 import dev.nikdekur.nexushub.packet.`in`.PacketAuth
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.ClientTalker
 
-interface AuthenticationService {
+interface AuthenticationService : NexusHubService {
 
-    suspend fun executeAuthenticatedPacket(talker: ClientTalker, context: IncomingContext<Packet>)
 
-    suspend fun processAuth(talker: ClientTalker, packet: PacketAuth)
+    suspend fun authenticate(talker: ClientTalker, packet: PacketAuth): AuthResult
+
+    sealed interface AuthResult {
+        class Success(val node: Node) : AuthResult
+        object AccountNotFound : AuthResult
+        object WrongCredentials : AuthResult
+        object NodeNameInvalid : AuthResult
+        object NodeAtAddressAlreadyExists : AuthResult
+        object NodeAlreadyExists : AuthResult
+    }
 }

@@ -9,11 +9,9 @@
 package dev.nikdekur.nexushub.talker
 
 import dev.nikdekur.ndkore.ext.debug
-import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
+import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.PacketManager
-import dev.nikdekur.nexushub.network.addressHash
-import dev.nikdekur.nexushub.network.addressStr
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.Packet
@@ -27,27 +25,23 @@ import org.slf4j.LoggerFactory
 
 class KtorClientTalker(
     override val app: NexusHubServer,
-    val websocket: DefaultWebSocketServerSession
+    val websocket: DefaultWebSocketServerSession,
+    override val address: Address
 ) : ClientTalker, NexusHubComponent {
 
-    val talkersService: TalkersService by inject()
-
     val logger = LoggerFactory.getLogger(javaClass)
-
-    override val addressHash = websocket.call.addressHash
-    override val addressStr = websocket.call.addressStr
 
     val packetManager = PacketManager(this, Dispatchers.IO)
 
     @OptIn(DelicateCoroutinesApi::class)
     override val isOpen: Boolean
-        get() = websocket.closeReason.isActive && (!websocket.outgoing.isClosedForSend && !websocket.incoming.isClosedForReceive)
+        get() = websocket.closeReason.isActive && (!websocket.outgoing.isClosedForSend && !websocket.incoming.isClosedForReceive) && !isBlocked
 
     override var isBlocked: Boolean = false
 
     override suspend fun send(transmission: PacketTransmission<*>) {
         val bytes = packetManager.processOutgoingTransmission(transmission)
-        logger.debug { "[$addressStr] Sending packet ${transmission.packet}" }
+        logger.debug { "[$address] Sending packet ${transmission.packet}" }
         websocket.send(bytes)
     }
 
@@ -61,21 +55,21 @@ class KtorClientTalker(
     }
 
     override suspend fun close(code: CloseCode, comment: String) {
-        talkersService.removeTalker(addressHash)
+        // talkersService.removeTalker(address)
         websocket.close(CloseReason(code.code, comment))
     }
 
 
     override fun equals(other: Any?): Boolean {
         if (other !is KtorClientTalker) return false
-        return this.addressHash == other.addressHash
+        return this.address == other.address
     }
 
     override fun hashCode(): Int {
-        return addressHash
+        return address.hashCode()
     }
 
     override fun toString(): String {
-        return "KtorTalker(address='$addressHash')"
+        return "KtorTalker(address='$address')"
     }
 }

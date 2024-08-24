@@ -6,11 +6,14 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.network.ratelimit
+package dev.nikdekur.nexushub.network
 
-import dev.nikdekur.nexushub.network.talker.Talker
+data class Address(
+    val host: String,
+    val port: Int
+) {
 
-interface RateLimiter {
-
-    fun acquire(talker: Talker): Boolean
+    override fun toString(): String {
+        return "$host:$port"
+    }
 }

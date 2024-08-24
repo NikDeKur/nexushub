@@ -6,31 +6,24 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.protection.argon2
+package dev.nikdekur.nexushub.protection.none
 
-import dev.nikdekur.ndkore.ext.delay
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
 
-class Argon2ProtectionService(
+class NoneProtectionService(
     override val app: NexusHubServer
 ) : ProtectionService {
-
     override fun createPassword(string: String): Password {
-        return Argon2Encryptor.encryptNew(string)
+        return NoneProtectionPassword(string)
     }
 
     override fun deserializePassword(string: String): Password {
-        val parts = string.split(":")
-        val bytes = parts[0].fromHEX()
-        val saltByte = parts[1].fromHEX()
-        val salt = Salt(saltByte)
-        return Argon2Password(bytes, salt)
+        return createPassword(string)
     }
 
     override suspend fun imitateEncryption() {
-        val averageTime = Argon2Encryptor.averageHashTime()
-        delay(averageTime)
+        // Do nothing
     }
 }

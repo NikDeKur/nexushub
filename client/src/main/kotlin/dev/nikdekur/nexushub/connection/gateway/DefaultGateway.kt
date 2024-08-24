@@ -16,6 +16,7 @@ import dev.nikdekur.nexushub.connection.handler.HeartbeatHandler
 import dev.nikdekur.nexushub.event.Close
 import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.event.NetworkEvent
+import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
 import dev.nikdekur.nexushub.network.talker.sendPacket
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
@@ -120,8 +121,11 @@ class DefaultGateway(
                 continue
             }
 
+            val address = socket.call.request.url.let {
+                Address(it.host, it.port)
+            }
 
-            talker = ServerTalker(socket, Dispatchers.IO)
+            talker = ServerTalker(socket, Dispatchers.IO, address)
 
             // Incoming would end on close
             try {

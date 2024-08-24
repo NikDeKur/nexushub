@@ -12,7 +12,6 @@ import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
-import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.StorageTable
 import dev.nikdekur.nexushub.storage.account.AccountDAO
@@ -27,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class StorageAccountsService(
     override val app: NexusHubServer
-) : NexusHubService, AccountsService {
+) : AccountsService {
 
     val protectionService: ProtectionService by inject()
     val storage: StorageService by inject()
@@ -41,7 +40,7 @@ class StorageAccountsService(
     val accounts = ConcurrentHashMap<String, Account>()
 
 
-    override fun onLoad(): Unit = runBlocking {
+    override fun onEnable(): Unit = runBlocking {
         table = storage.getTable("accounts")
         table.createIndex("login", mapOf("login" to 1), indexOptions {
             unique = true
@@ -50,7 +49,7 @@ class StorageAccountsService(
         table.find().toList().forEach(::registerAccount)
     }
 
-    override fun onUnload() {
+    override fun onDisable() {
         accounts.clear()
     }
 

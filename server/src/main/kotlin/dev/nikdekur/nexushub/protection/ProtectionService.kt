@@ -8,11 +8,44 @@
 
 package dev.nikdekur.nexushub.protection
 
-interface ProtectionService {
+import dev.nikdekur.nexushub.service.NexusHubService
 
-    fun averageEncryptionTime(): Int
+/**
+ * # Protection Service
+ *
+ * The protection service is responsible for creating and managing passwords.
+ * Different implementations of this service can provide different levels of security
+ * or either no security at all.
+ */
+interface ProtectionService : NexusHubService {
 
+    /**
+     * Creates a password from a string.
+     *
+     * May take some time to complete, depending on the implementation.
+     *
+     * @param string The string to create the password from.
+     * @return The created password.
+     */
     fun createPassword(string: String): Password
 
+    /**
+     * Deserializes a password from a string.
+     *
+     * May take some time to complete, depending on the implementation.
+     *
+     * String is guaranteed to be a result of a previous call to [Password.serialize].
+     *
+     * @param string The string to deserialize the password from.
+     * @return The deserialized password.
+     */
     fun deserializePassword(string: String): Password
+
+    /**
+     * Imitates encryption.
+     *
+     * Used for security, when the actual encryption is unnecessary.
+     * It Should take some time to complete, depending on the implementation.
+     */
+    suspend fun imitateEncryption()
 }

@@ -8,7 +8,6 @@
 
 package dev.nikdekur.nexushub.storage.mongo
 
-import com.charleskorn.kaml.Yaml
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.ServerApi
@@ -16,8 +15,10 @@ import com.mongodb.ServerApiVersion
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import dev.nikdekur.ndkore.ext.info
+import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.service.NexusHubService
+import dev.nikdekur.nexushub.dataset.DataSetService
+import dev.nikdekur.nexushub.dataset.get
 import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.StorageTable
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.decodeFromString
 import org.bson.codecs.configuration.CodecRegistries.fromProviders
 import org.bson.codecs.configuration.CodecRegistries.fromRegistries
 import org.bson.codecs.pojo.PojoCodecProvider
@@ -35,25 +35,27 @@ import java.io.File
 
 class MongoStorageService(
     override val app: NexusHubServer
-) : StorageService, NexusHubService {
+) : StorageService {
 
     val logger = LoggerFactory.getLogger(javaClass)
+
+    val dataSetService: DataSetService by inject()
 
     lateinit var client: MongoClient
     lateinit var database: MongoDatabase
 
     override lateinit var scope: CoroutineScope
 
-    override fun onLoad() {
+    override fun onEnable() {
         logger.info { "Initializing Database" }
 
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         val configFile = File("mongo.yml")
         require(configFile.exists()) { "Config file not found" }
-        val config = configFile.readText().let {
-            Yaml.default.decodeFromString<MongoConfig>(it)
-        }
+
+        val config = dataSetService.get<MongoDataSet>("mongo")
+            ?: error("Config for Mongo not found")
 
         val serverApi = ServerApi.builder()
             .version(ServerApiVersion.V1)
@@ -80,7 +82,7 @@ class MongoStorageService(
         logger.info { "Database initialized" }
     }
 
-    override fun onUnload() {
+    override fun onDisable() {
         logger.info { "Disconnecting from Database" }
         scope.cancel()
         client.close()

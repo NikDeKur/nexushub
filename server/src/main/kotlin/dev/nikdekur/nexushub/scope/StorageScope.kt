@@ -19,16 +19,18 @@ import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.data.buildLeaderboard
 import dev.nikdekur.nexushub.dataset.DataSetService
+import dev.nikdekur.nexushub.dataset.get
 import dev.nikdekur.nexushub.service.NexusHubComponent
 import dev.nikdekur.nexushub.storage.scope.ScopeTable
 import dev.nikdekur.nexushub.util.NexusData
 import org.slf4j.LoggerFactory
-import java.util.concurrent.TimeUnit
+import kotlin.time.toJavaDuration
+
 
 data class StorageScope(
     override val app: NexusHubServer,
     override val id: String,
-    val collection: ScopeTable
+    val table: ScopeTable
 ) : Scope, NexusHubComponent {
 
     val logger = LoggerFactory.getLogger(javaClass)
@@ -41,11 +43,11 @@ data class StorageScope(
     val cache: Cache<String, NexusData> by lazy {
         CacheBuilder.newBuilder()
             .apply {
-                val dataset = datasetService.getDataSet().cache
-                val cacheExpiration = dataset.cacheExpiration
-                val cacheSize = dataset.cacheMaxSize
-                expireAfterWrite(cacheExpiration, TimeUnit.SECONDS)
-                expireAfterAccess(cacheExpiration, TimeUnit.SECONDS)
+                val cache = datasetService.get<CacheScopeDataSet>("cache") ?: CacheScopeDataSet()
+                val cacheExpiration = cache.cacheExpiration.toJavaDuration()
+                val cacheSize = cache.cacheMaxSize
+                expireAfterWrite(cacheExpiration)
+                expireAfterAccess(cacheExpiration)
                 maximumSize(cacheSize)
             }.build()
     }
@@ -55,7 +57,7 @@ data class StorageScope(
         // Don't use cache[holderId] because CacheBuilder doesn't support async loading
         val cached = cache.getIfPresent(holderId)
         if (cached != null) return cached
-        val data = collection.findOrNull(holderId) ?: emptyMap()
+        val data = table.findOrNull(holderId) ?: emptyMap()
         cache.put(holderId, data)
         return data
     }
@@ -64,13 +66,13 @@ data class StorageScope(
     override suspend fun setData(holderId: String, data: NexusData) {
         val clean = data.removeEmpty(maps = true, collections = true)
         cache.put(holderId, clean)
-        collection.save(holderId, clean)
+        table.save(holderId, clean)
     }
 
 
     override suspend fun getLeaderboard(path: String, startFrom: Int, limit: Int): Leaderboard {
         val leaderboard = logger.recordTiming(name = "getLeaderboard") {
-            val rawLeaderboard = collection.getLeaderboard(path, startFrom, limit)
+            val rawLeaderboard = table.getLeaderboard(path, startFrom, limit)
 
             logger.info("Raw leaderboard: $rawLeaderboard")
 
@@ -122,7 +124,7 @@ data class StorageScope(
                 throw NumberFormatException("Field $field is not a number")
             val value = fieldValue.toDouble()
 
-            val position = collection.getTopPosition(holderId, field, value)
+            val position = table.getTopPosition(holderId, field, value)
 
             LeaderboardEntry(position, holderId, value)
         }

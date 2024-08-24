@@ -96,8 +96,6 @@ open class PacketManager(val talker: Talker, timeoutsDispatcher: CoroutineDispat
             response?.processReceived(talker, instance)
 
             return HandlerContext.Receive(talker, instance, response != null)
-
-
         } catch (e: Exception) {
             response?.invokeException(talker, e)
             e.printStackTrace()

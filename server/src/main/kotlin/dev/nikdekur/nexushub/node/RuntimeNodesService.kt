@@ -9,13 +9,14 @@
 package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
+import dev.nikdekur.ndkore.scheduler.runTaskTimer
 import dev.nikdekur.ndkore.service.Dependencies
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
+import dev.nikdekur.nexushub.access.PingDataSet
 import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.dataset.DataSetService
-import dev.nikdekur.nexushub.network.talker.Talker
-import dev.nikdekur.nexushub.service.NexusHubService
+import dev.nikdekur.nexushub.dataset.get
 import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
 import kotlinx.coroutines.Dispatchers
@@ -24,10 +25,12 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.properties.Delegates
+import kotlin.time.Duration
 
 class RuntimeNodesService(
     override val app: NexusHubServer
-) : NexusHubService, NodesService {
+) : NodesService {
 
     // Specify it as last, to be first for unloading
     // We have to close all nodes before unloading other services
@@ -38,18 +41,23 @@ class RuntimeNodesService(
     lateinit var scope: CoroutineScheduler
 
     // Where key is either the node id or the talker address
-    val nodesMap = ConcurrentHashMap<String, DefaultNode>()
+    val nodesMap = ConcurrentHashMap<String, Node>()
+
+    override var pingInterval: Duration by Delegates.notNull()
+
 
     override val nodes: Collection<Node>
         get() = nodesMap.values
 
-    override fun onLoad() {
+    override fun onEnable() {
         scope = CoroutineScheduler.fromSupervisor(Dispatchers.Default)
-        val config = datasetService.getDataSet().ping
-        val interval = config.interval * 1000L
-        val deadInterval = interval + config.extraInterval
 
-        scope.runTaskTimer(interval) {
+
+        val config = datasetService.get<PingDataSet>("ping") ?: PingDataSet()
+        pingInterval = config.interval
+        val deadInterval = pingInterval + config.extraInterval
+
+        scope.runTaskTimer(deadInterval) {
             nodesMap.values.forEach { node ->
                 if (node.isAlive(deadInterval)) return@forEach
                 node.close(CloseCode.PING_FAILED, "Ping failed")
@@ -57,7 +65,7 @@ class RuntimeNodesService(
         }
     }
 
-    override fun onUnload() {
+    override fun onDisable() {
         runBlocking {
             closeAllNodes(CloseCode.SHUTDOWN, "Server is shutting down")
         }
@@ -68,12 +76,12 @@ class RuntimeNodesService(
     override fun newNode(talker: ClientTalker, account: Account, id: String): Node {
         val node = DefaultNode(app, talker, account, id)
         nodesMap[node.id] = node
-        nodesMap[node.talker.addressStr] = node
+        nodesMap[node.talker.address.toString()] = node
         return node
     }
 
     override fun getNode(talker: ClientTalker): Node? {
-        return nodesMap[talker.addressStr]
+        return nodesMap[talker.address.toString()]
     }
 
     override fun getNode(id: String): Node? {
@@ -84,17 +92,8 @@ class RuntimeNodesService(
     override fun removeNode(talker: ClientTalker): Node? {
         return getNode(talker)?.also {
             nodesMap.remove(it.id)
-            nodesMap.remove(it.addressStr)
+            nodesMap.remove(it.address.toString())
         }
-    }
-
-
-    fun getAuthenticatedNode(talker: Talker): DefaultNode? {
-        return nodesMap[talker.addressStr]
-    }
-
-    fun isNodeExists(nodeId: String): Boolean {
-        return nodesMap.containsKey(nodeId)
     }
 
 

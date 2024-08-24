@@ -16,7 +16,6 @@ import dev.nikdekur.nexushub.http.HTTPAuthService.EnsureAuthResponse
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
 import dev.nikdekur.nexushub.modal.out.AuthSuccess
 import dev.nikdekur.nexushub.network.auth.RootToken
-import dev.nikdekur.nexushub.service.NexusHubService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -25,7 +24,7 @@ import java.util.UUID
 
 class HTTPSessionAuthService(
     override val app: NexusHubServer
-) : NexusHubService, HTTPAuthService {
+) : HTTPAuthService {
 
     val accountsService: AccountsService by inject()
 

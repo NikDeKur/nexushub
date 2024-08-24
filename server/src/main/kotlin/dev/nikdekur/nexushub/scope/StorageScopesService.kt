@@ -13,7 +13,6 @@ package dev.nikdekur.nexushub.scope
 import dev.nikdekur.ndkore.service.dependencies
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.StorageTable
 import dev.nikdekur.nexushub.storage.index.indexOptions
@@ -29,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class StorageScopesService(
     override val app: NexusHubServer
-) : NexusHubService, ScopesService {
+) : ScopesService {
 
     override val dependencies = dependencies {
         after(StorageService::class)
@@ -40,7 +39,7 @@ class StorageScopesService(
     val scopes = ConcurrentHashMap<String, Scope>()
     lateinit var table: StorageTable<ScopeDAO>
 
-    override fun onLoad() {
+    override fun onEnable() {
         runBlocking {
             table = storage.getTable<ScopeDAO>("scopes")
 
@@ -48,7 +47,7 @@ class StorageScopesService(
         }
     }
 
-    override fun onUnload() {
+    override fun onDisable() {
         scopes.clear()
     }
 

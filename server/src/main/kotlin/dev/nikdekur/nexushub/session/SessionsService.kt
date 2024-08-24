@@ -10,8 +10,9 @@ package dev.nikdekur.nexushub.session
 
 import dev.nikdekur.nexushub.node.DefaultNode
 import dev.nikdekur.nexushub.scope.Scope
+import dev.nikdekur.nexushub.service.NexusHubService
 
-interface SessionsService {
+interface SessionsService : NexusHubService {
 
     fun getExistingSession(scopeId: String, holderId: String): Session?
     fun hasAnySessions(node: DefaultNode): Boolean

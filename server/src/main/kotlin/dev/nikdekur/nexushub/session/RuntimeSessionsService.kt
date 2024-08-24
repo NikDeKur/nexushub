@@ -8,30 +8,35 @@
 
 package dev.nikdekur.nexushub.session
 
-import dev.nikdekur.ndkore.map.multi.ConcurrentMultiHashMap
-import dev.nikdekur.ndkore.map.set.ConcurrentSetsHashMap
+import dev.nikdekur.ndkore.ext.ConcurrentHashSet
+import dev.nikdekur.ndkore.map.MutableMultiMap
+import dev.nikdekur.ndkore.map.MutableSetsMap
+import dev.nikdekur.ndkore.map.add
+import dev.nikdekur.ndkore.map.get
+import dev.nikdekur.ndkore.map.put
+import dev.nikdekur.ndkore.map.remove
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.node.DefaultNode
 import dev.nikdekur.nexushub.scope.Scope
-import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import java.util.concurrent.ConcurrentHashMap
 
 class RuntimeSessionsService(
     override val app: NexusHubServer
-) : NexusHubService, SessionsService {
+) : SessionsService {
 
     lateinit var syncingScope: CoroutineScope
 
-    override fun onLoad() {
+    override fun onEnable() {
         syncingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }
 
-    override fun onUnload() {
+    override fun onDisable() {
         syncingScope.cancel()
         sessions.clear()
         nodeToSessions.clear()
@@ -39,9 +44,9 @@ class RuntimeSessionsService(
     }
 
     //                                    scope   holder
-    val sessions = ConcurrentMultiHashMap<String, String, Session>()
-    val nodeToSessions = ConcurrentSetsHashMap<String, Session>()
-    val scopeToNodes = ConcurrentSetsHashMap<String, DefaultNode>()
+    val sessions: MutableMultiMap<String, String, Session> = ConcurrentHashMap()
+    val nodeToSessions: MutableSetsMap<String, Session> = ConcurrentHashMap()
+    val scopeToNodes: MutableSetsMap<String, DefaultNode> = ConcurrentHashMap()
 
     override fun getExistingSession(scopeId: String, holderId: String): Session? {
         return sessions[scopeId, holderId]
@@ -49,17 +54,17 @@ class RuntimeSessionsService(
 
     override fun startSession(node: DefaultNode, scope: Scope, holderId: String) {
         val session = Session(node, scope, holderId)
-        sessions.put(scope.id, holderId, session)
-        nodeToSessions.add(node.id, session)
-        scopeToNodes.add(scope.id, node)
+        sessions.put(scope.id, holderId, session, ::ConcurrentHashMap)
+        nodeToSessions.add(node.id, session, ::ConcurrentHashSet)
+        scopeToNodes.add(scope.id, node, ::ConcurrentHashSet)
     }
 
     override fun stopSession(scopeId: String, holderId: String) {
         val session = sessions.remove(scopeId, holderId)
         if (session != null) {
             val node = session.node
-            nodeToSessions.delete(node.id, session)
-            scopeToNodes.delete(scopeId, node)
+            nodeToSessions.remove(node.id, session)
+            scopeToNodes.remove(scopeId, node)
         }
     }
 
@@ -68,7 +73,7 @@ class RuntimeSessionsService(
         val nodeSessions = nodeToSessions.remove(node.id)
         nodeSessions?.forEach {
             sessions.remove(it.scope.id, it.holderId)
-            scopeToNodes.delete(it.scope.id, node)
+            scopeToNodes.remove(it.scope.id, node)
         }
     }
 
@@ -78,7 +83,7 @@ class RuntimeSessionsService(
 
 
     override suspend fun requestSync(scope: Scope) {
-        val nodes = scopeToNodes[scope.id]
+        val nodes = scopeToNodes[scope.id] ?: return
 
         nodes.map {
             syncingScope.async {

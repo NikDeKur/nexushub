@@ -9,9 +9,10 @@
 package dev.nikdekur.nexushub.http
 
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
+import dev.nikdekur.nexushub.service.NexusHubService
 import io.ktor.server.application.ApplicationCall
 
-interface HTTPAuthService {
+interface HTTPAuthService : NexusHubService {
 
     /**
      * Login to the server with the given [request].

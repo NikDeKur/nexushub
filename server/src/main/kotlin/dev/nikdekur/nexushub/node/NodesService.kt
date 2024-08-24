@@ -11,10 +11,14 @@
 package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.nexushub.account.Account
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
+import kotlin.time.Duration
 
-interface NodesService {
+interface NodesService : NexusHubService {
+
+    val pingInterval: Duration
 
     val nodes: Collection<Node>
 

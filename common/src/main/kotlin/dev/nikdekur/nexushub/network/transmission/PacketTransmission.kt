@@ -17,6 +17,7 @@ import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.packet.Packet
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.TimeoutException
+import kotlin.time.Duration
 
 /**
  * Represents a packet transmission
@@ -38,7 +39,7 @@ data class PacketTransmission<R>(
 
     val result = CompletableDeferred<R>()
 
-    val timeoutTasks = HashMap<Long, SchedulerTask>()
+    val timeoutTasks = HashMap<Duration, SchedulerTask>()
 
     internal suspend fun invokeException(talker: Talker, e: Exception) {
         try {
@@ -85,7 +86,7 @@ data class PacketTransmission<R>(
     }
 
 
-    suspend fun invokeTimeout(timeout: Long, talker: Talker) {
+    suspend fun invokeTimeout(timeout: Duration, talker: Talker) {
         try {
             val context = HandlerContext.Timeout<R>(talker, packet)
             val timeoutHandler = reaction.timeouts[timeout]

@@ -11,6 +11,8 @@ package dev.nikdekur.nexushub
 import dev.nikdekur.ndkore.koin.SimpleKoinContext
 import dev.nikdekur.ndkore.service.KoinServicesManager
 import dev.nikdekur.ndkore.service.ServicesManager
+import dev.nikdekur.nexushub.access.AccessService
+import dev.nikdekur.nexushub.access.AccessServiceImpl
 import dev.nikdekur.nexushub.account.AccountsService
 import dev.nikdekur.nexushub.account.StorageAccountsService
 import dev.nikdekur.nexushub.auth.AccountAuthenticationService
@@ -22,27 +24,25 @@ import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.node.RuntimeNodesService
 import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.protection.argon2.Argon2ProtectionService
+import dev.nikdekur.nexushub.ratelimit.PeriodRateLimitService
+import dev.nikdekur.nexushub.ratelimit.RateLimitService
 import dev.nikdekur.nexushub.scope.ScopesService
 import dev.nikdekur.nexushub.scope.StorageScopesService
-import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.session.RuntimeSessionsService
 import dev.nikdekur.nexushub.session.SessionsService
 import dev.nikdekur.nexushub.setup.EnvironmentSetupService
 import dev.nikdekur.nexushub.setup.SetupService
 import dev.nikdekur.nexushub.storage.StorageService
-import dev.nikdekur.nexushub.talker.RuntimeTalkersService
-import dev.nikdekur.nexushub.talker.TalkersService
 import org.koin.environmentProperties
 import org.slf4j.LoggerFactory
 import kotlin.properties.Delegates
-import kotlin.reflect.KClass
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 abstract class AbstractNexusHubServer : NexusHubServer {
     override val logger = LoggerFactory.getLogger(javaClass)
 
-    override lateinit var servicesManager: ServicesManager<NexusHubServer>
+    override lateinit var servicesManager: ServicesManager
 
     var startTime by Delegates.notNull<Long>()
 
@@ -58,28 +58,32 @@ abstract class AbstractNexusHubServer : NexusHubServer {
     open fun buildProtectionService(): ProtectionService = Argon2ProtectionService(this)
     open fun buildNodesService(): NodesService = RuntimeNodesService(this)
     open fun buildSessionsService(): SessionsService = RuntimeSessionsService(this)
-    open fun buildTalkersService(): TalkersService = RuntimeTalkersService(this)
     open fun buildAuthenticationService(): AuthenticationService = AccountAuthenticationService(this)
     open fun buildHTTPAuthService(): HTTPAuthService = HTTPSessionAuthService(this)
+    open fun buildRateLimitService(): RateLimitService = PeriodRateLimitService(this)
+
+    open fun buildAccessService(): AccessService = AccessServiceImpl(this)
+
     open fun buildSetupService(): SetupService = EnvironmentSetupService(this)
 
 
     fun setupServices() {
         with(servicesManager) {
-            register(buildDataSetService(), DataSetService::class)
+            registerService(buildDataSetService(), DataSetService::class)
+            registerService(buildStorageService(), StorageService::class)
 
-            register(buildStorageService(), StorageService::class)
-            register(buildScopesService(), ScopesService::class)
-            register(buildAccountsService(), AccountsService::class)
+            registerService(buildScopesService(), ScopesService::class)
+            registerService(buildAccountsService(), AccountsService::class)
+            registerService(buildProtectionService(), ProtectionService::class)
+            registerService(buildNodesService(), NodesService::class)
+            registerService(buildSessionsService(), SessionsService::class)
+            registerService(buildAuthenticationService(), AuthenticationService::class)
+            registerService(buildHTTPAuthService(), HTTPAuthService::class)
+            registerService(buildRateLimitService(), RateLimitService::class)
 
-            register(buildProtectionService(), ProtectionService::class)
-            register(buildNodesService(), NodesService::class)
-            register(buildSessionsService(), SessionsService::class)
-            register(buildTalkersService(), TalkersService::class)
-            register(buildAuthenticationService(), AuthenticationService::class)
-            register(buildHTTPAuthService(), HTTPAuthService::class)
+            registerService(buildAccessService(), AccessService::class)
 
-            register(buildSetupService(), SetupService::class)
+            registerService(buildSetupService(), SetupService::class)
         }
     }
 
@@ -92,19 +96,12 @@ abstract class AbstractNexusHubServer : NexusHubServer {
             environmentProperties()
         }
 
-        servicesManager = KoinServicesManager<NexusHubServer>(context, this)
+        servicesManager = KoinServicesManager(context)
 
         logger.info("Applying services...")
         servicesManager.apply { setupServices() }
 
         logger.info("Loading services...")
-        servicesManager.loadAll()
+        servicesManager.enable()
     }
-}
-
-fun <T : Any> ServicesManager<NexusHubServer>.register(service: T, bind: KClass<T>) {
-    service as? NexusHubService ?: throw IllegalArgumentException("Service `$service` does not implement NexusHubService")
-
-    registerService(service, bind)
-    service.onLoad()
 }

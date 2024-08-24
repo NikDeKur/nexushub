@@ -13,10 +13,9 @@ import dev.nikdekur.ndkore.ext.addShutdownHook
 import dev.nikdekur.ndkore.service.getService
 import dev.nikdekur.nexushub.KtorNexusHubServer
 import dev.nikdekur.nexushub.dataset.DataSetService
+import dev.nikdekur.nexushub.dataset.get
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
-import kotlin.time.toDuration
-import kotlin.time.toDurationUnit
 
 class ConsoleNexusHubServerBoot {
 
@@ -36,18 +35,17 @@ class ConsoleNexusHubServerBoot {
                 with(server) {
 
                     addShutdownHook {
-                        val dataset = servicesManager.getService<DataSetService>().getDataSet()
+                        val dataset = servicesManager.getService<DataSetService>()
 
                         logger.info("Unloading services...")
-                        servicesManager.unloadAll()
+                        servicesManager.disable()
 
                         logger.info("Shutting down server...")
                         logger.info("This may take a few seconds...")
-                        val shutdownConfig = dataset.shutdown
+                        val shutdownDataSet = dataset.get<ShutdownDataSet>("shutdown") ?: ShutdownDataSet()
 
-                        val unit = shutdownConfig.unit.toDurationUnit()
-                        val gracePeriod = shutdownConfig.gracePeriod.toDuration(unit)
-                        val timeout = shutdownConfig.timeout.toDuration(unit)
+                        val gracePeriod = shutdownDataSet.gracePeriod
+                        val timeout = shutdownDataSet.timeout
                         stop(gracePeriod, timeout)
                     }
 
