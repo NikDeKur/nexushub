@@ -13,22 +13,22 @@ import dev.nikdekur.nexushub.NexusHub
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.event.NetworkEvent
+import dev.nikdekur.nexushub.packet.PacketBatchSaveData
+import dev.nikdekur.nexushub.packet.PacketEndSession
 import dev.nikdekur.nexushub.packet.PacketError
-import dev.nikdekur.nexushub.packet.PacketError.Level
+import dev.nikdekur.nexushub.packet.PacketLeaderboard
 import dev.nikdekur.nexushub.packet.PacketOk
-import dev.nikdekur.nexushub.packet.`in`.PacketBatchSaveData
-import dev.nikdekur.nexushub.packet.`in`.PacketEndSession
-import dev.nikdekur.nexushub.packet.`in`.PacketRequestLeaderboard
-import dev.nikdekur.nexushub.packet.`in`.PacketRequestTopPosition
-import dev.nikdekur.nexushub.packet.`in`.PacketSaveData
-import dev.nikdekur.nexushub.packet.out.PacketLeaderboard
-import dev.nikdekur.nexushub.packet.out.PacketTopPosition
+import dev.nikdekur.nexushub.packet.PacketRequestLeaderboard
+import dev.nikdekur.nexushub.packet.PacketRequestTopPosition
+import dev.nikdekur.nexushub.packet.PacketSaveData
+import dev.nikdekur.nexushub.packet.PacketTopPosition
 import dev.nikdekur.nexushub.scope.ScopeData
 import dev.nikdekur.nexushub.serialization.DataSerializer
+import dev.nikdekur.nexushub.sesion.RuntimeSession
 import dev.nikdekur.nexushub.sesion.Session
-import dev.nikdekur.nexushub.sesion.SessionImpl
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.seconds
 
 abstract class AbstractNexusService<H, S : ScopeData<S>>(
     override val hub: NexusHub,
@@ -37,13 +37,12 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
 
     val logger = LoggerFactory.getLogger("NexusHub-$scope")
 
-    open val sessionsLimit: Long = -1
     abstract override val serializer: DataSerializer<H, S>
 
     val sessionsCache = ConcurrentHashMap<String, Session<H, S>>()
 
     override fun createSession(holder: H): Session<H, S> {
-        return SessionImpl(this, holder)
+        return RuntimeSession(this, holder)
     }
 
     open fun removeSession(session: Session<H, S>) {
@@ -88,7 +87,7 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
         hub.gateway.sendPacket<Unit>(packet) {
             receive<PacketOk> {}
 
-            timeout(5000) {
+            timeout(5.seconds) {
                 hub.logger.warn("Timeout while stopping session.")
             }
 
@@ -118,7 +117,7 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
         hub.gateway.sendPacket<Unit>(packet) {
             receive<PacketOk> {}
 
-            timeout(5000) {
+            timeout(5.seconds) {
                 logger.warn("Timeout while saving all sessions.")
             }
 
@@ -133,7 +132,7 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, "")
 
         return hub.gateway.sendPacket(packet) {
-            throwOnTimeout(5000)
+            throwOnTimeout(5.seconds)
 
             receive<PacketLeaderboard> {
                 this.packet.leaderboard
@@ -150,7 +149,7 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
 
         @Suppress("RemoveExplicitTypeArguments")
         return hub.gateway.sendPacket<LeaderboardEntry?>(packet) {
-            throwOnTimeout(5000)
+            throwOnTimeout(5.seconds)
 
             receive<PacketTopPosition> {
                 this.packet.entry
@@ -176,7 +175,7 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
         val packet = PacketRequestLeaderboard(scope, field, startFrom, limit, holderId)
 
         return hub.gateway.sendPacket(packet) {
-            throwOnTimeout(5000)
+            throwOnTimeout(5.seconds)
 
             receive<PacketLeaderboard> {
                 this.packet
@@ -208,7 +207,7 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
         if (session == null) {
             event.context.respond<String>(
                 PacketError(
-                    Level.ERROR,
+                    PacketError.Level.ERROR,
                     PacketError.Code.SESSION_NOT_FOUND,
                     "No session found"
                 )

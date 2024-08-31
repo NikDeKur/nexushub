@@ -99,7 +99,7 @@ class NexusHubRootRequester(
     }
 
 
-    suspend fun getAccountsList(): List<Account> {
+    suspend fun getAccountsList(): Collection<Account> {
         return request(RootPaths.LIST_ACCOUNTS, Unit).body.accounts
     }
 

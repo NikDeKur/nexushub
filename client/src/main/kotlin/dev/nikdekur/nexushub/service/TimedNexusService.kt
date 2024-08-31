@@ -23,7 +23,7 @@ abstract class TimedNexusService<H, S : ScopeData<S>>(
     scope: String
 ) : AbstractNexusService<H, S>(hub, scope) {
 
-    val sessionLiveTimeMs = sessionLiveTime.inWholeMilliseconds
+    val sessionLiveTimeMs = sessionLiveTime
     val tasks = ConcurrentHashMap<String, SchedulerTask>()
 
     override fun getExistingSession(holderId: String): Session<H, S>? {

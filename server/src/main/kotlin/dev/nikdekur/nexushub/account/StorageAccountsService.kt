@@ -33,7 +33,7 @@ class StorageAccountsService(
 
     lateinit var table: StorageTable<AccountDAO>
 
-    override fun getAccounts(): Collection<Account> {
+    override suspend fun getAccounts(): Collection<Account> {
         return accounts.values
     }
 
@@ -54,7 +54,7 @@ class StorageAccountsService(
     }
 
 
-    override fun getAccount(login: String): Account? {
+    override suspend fun getAccount(login: String): Account? {
         return accounts[login]
     }
 
@@ -77,14 +77,14 @@ class StorageAccountsService(
     override suspend fun createAccount(
         login: String,
         password: String,
-        allowedScopes: Set<String>
+        allowedScopes: Iterable<String>
     ): Account {
         require(getAccount(login) == null) { "Account with login \"$login\" already exists" }
         val password = protectionService.createPassword(password)
         val dao = AccountDAO(
             login = login,
             password = password.serialize(),
-            allowedScopes = allowedScopes
+            allowedScopes = allowedScopes.toSet()
         )
         return createAccount(dao)
     }

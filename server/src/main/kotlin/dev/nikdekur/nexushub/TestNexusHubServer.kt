@@ -10,9 +10,7 @@ package dev.nikdekur.nexushub
 
 import kotlin.time.Duration
 
-abstract class TestNexusHubServer : AbstractNexusHubServer() {
-
-
+abstract class TestNexusHubServer : ProductionNexusHubServer() {
 
     override fun start() {
         super.start()

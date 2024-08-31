@@ -13,5 +13,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class AccountsListResponse(
-    val accounts: List<Account>
+    val accounts: Collection<Account>
 )

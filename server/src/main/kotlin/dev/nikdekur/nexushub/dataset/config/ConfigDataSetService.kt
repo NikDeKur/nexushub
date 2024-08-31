@@ -32,13 +32,15 @@ class ConfigDataSetService(
         _delegate = MapDataSetService(
             app,
             Yaml.decodeMapFromString(configFile.readText()) as Map<String, Any>
-        )
+        ).also { it.onEnable() }
     }
 
     override fun onDisable() {
-        _delegate = null
+        _delegate?.onDisable()
+        // Don't nullify delegate here, as might be necessary for shutdown tasks
     }
 
-    override fun <T : Any> get(key: String, clazz: KClass<T>) = delegate[key, clazz]
+
+    override fun <T : Any> get(key: String, clazz: KClass<T>) = delegate.get<T>(key, clazz)
     override fun getSection(key: String) = delegate.getSection(key)
 }

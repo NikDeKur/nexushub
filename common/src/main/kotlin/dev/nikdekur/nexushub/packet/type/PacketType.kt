@@ -8,16 +8,12 @@
 
 package dev.nikdekur.nexushub.packet.type
 
-import dev.nikdekur.ndkore.ext.construct
 import dev.nikdekur.nexushub.packet.Packet
+import kotlinx.serialization.KSerializer
 
 
-interface PacketType<T : Packet> {
+interface PacketType {
 
     val id: UByte
-    val clazz: Class<out T>
-
-    fun newInstance(): T {
-        return clazz.construct()
-    }
+    val serializer: KSerializer<Packet>
 }

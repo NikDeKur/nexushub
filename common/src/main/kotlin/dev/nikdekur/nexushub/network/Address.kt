@@ -8,12 +8,19 @@
 
 package dev.nikdekur.nexushub.network
 
+/**
+ * Represents a network address.
+ *
+ * @property host The host.
+ * @property port The port.
+ */
 data class Address(
     val host: String,
     val port: Int
 ) {
 
-    override fun toString(): String {
-        return "$host:$port"
-    }
+    /**
+     * Returns the string representation of the address.
+     */
+    override fun toString() = "$host:$port"
 }

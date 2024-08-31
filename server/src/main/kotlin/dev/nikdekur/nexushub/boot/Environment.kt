@@ -31,4 +31,33 @@ interface Environment {
      * @return the value, or `null` if the value can't be requested
      */
     fun requestValue(key: String, description: String): String?
+
+    object Empty : Environment {
+        override fun getValue(key: String): String? = null
+        override fun requestValue(key: String, description: String): String? = null
+    }
+}
+
+class EnvironmentBuilder {
+    private val values = HashMap<String, String>()
+    private val requests = HashMap<String, String>()
+
+    fun value(key: String, value: String) {
+        values[key] = value
+    }
+
+    fun request(key: String, value: String) {
+        requests[key] = value
+    }
+
+    fun build(): Environment {
+        return object : Environment {
+            override fun getValue(key: String) = values[key]
+            override fun requestValue(key: String, description: String) = requests[key]
+        }
+    }
+}
+
+inline fun environment(block: EnvironmentBuilder.() -> Unit): Environment {
+    return EnvironmentBuilder().apply(block).build()
 }

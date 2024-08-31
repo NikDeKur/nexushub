@@ -26,10 +26,12 @@ repositories {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":ktor-utils"))
 
     implementation(libs.ndkore)
     implementation(libs.logback)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.barray)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.websockets)
@@ -41,6 +43,9 @@ dependencies {
 
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.slf4j.api)
+    testImplementation(libs.slf4j.simple)
+    testImplementation(libs.koin)
 }
 
 tasks.test {

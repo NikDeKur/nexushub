@@ -13,15 +13,15 @@ import dev.nikdekur.ndkore.ext.input
 /**
  * A boot environment that is backed by a map.
  *
- * @param map the map
+ * @param values the map
  * @constructor creates a new boot environment
  */
 class ConsoleBootEnvironment(
-    val map: Map<String, String>
+    val values: Map<String, String>
 ) : Environment {
 
     override fun getValue(key: String): String? {
-        return map[key]
+        return values[key]
     }
 
     override fun requestValue(key: String, description: String): String? {
@@ -42,18 +42,17 @@ class ConsoleBootEnvironment(
          */
         @JvmStatic
         fun fromCommandLineArgs(args: Array<String>): Environment {
-            val map = if (args.isEmpty())
-                emptyMap()
+            if (args.isEmpty())
+                return ConsoleBootEnvironment(emptyMap())
 
-            else
-                args
-                    .map { it.split("=") }
-                    .onEach {
-                        require(it.size == 2) { "Invalid command line argument: `$it`" }
-                    }
-                    .associate { it[0] to it[1] }
+            val values = args
+                .map { it.split("=") }
+                .onEach {
+                    require(it.size == 2) { "Invalid command line argument: `$it`" }
+                }
+                .associate { it[0] to it[1] }
 
-            return ConsoleBootEnvironment(map)
+            return ConsoleBootEnvironment(values)
         }
     }
 }

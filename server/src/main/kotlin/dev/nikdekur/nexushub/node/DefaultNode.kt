@@ -15,30 +15,29 @@ import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
-import dev.nikdekur.nexushub.network.talker.sendPacket
-import dev.nikdekur.nexushub.packet.*
-import dev.nikdekur.nexushub.packet.PacketError.Code
-import dev.nikdekur.nexushub.packet.PacketError.Level
-import dev.nikdekur.nexushub.packet.`in`.PacketBatchSaveData
-import dev.nikdekur.nexushub.packet.`in`.PacketHeartbeat
-import dev.nikdekur.nexushub.packet.`in`.PacketLoadData
-import dev.nikdekur.nexushub.packet.`in`.PacketRequestLeaderboard
-import dev.nikdekur.nexushub.packet.`in`.PacketRequestTopPosition
-import dev.nikdekur.nexushub.packet.`in`.PacketSaveData
-import dev.nikdekur.nexushub.packet.out.PacketHeartbeatACK
-import dev.nikdekur.nexushub.packet.out.PacketLeaderboard
-import dev.nikdekur.nexushub.packet.out.PacketRequestSync
-import dev.nikdekur.nexushub.packet.out.PacketStopSession
-import dev.nikdekur.nexushub.packet.out.PacketTopPosition
-import dev.nikdekur.nexushub.packet.out.PacketUserData
+import dev.nikdekur.nexushub.network.talker.Talker
+import dev.nikdekur.nexushub.packet.Packet
+import dev.nikdekur.nexushub.packet.PacketBatchSaveData
+import dev.nikdekur.nexushub.packet.PacketError
+import dev.nikdekur.nexushub.packet.PacketHeartbeat
+import dev.nikdekur.nexushub.packet.PacketHeartbeatACK
+import dev.nikdekur.nexushub.packet.PacketLeaderboard
+import dev.nikdekur.nexushub.packet.PacketLoadData
+import dev.nikdekur.nexushub.packet.PacketOk
+import dev.nikdekur.nexushub.packet.PacketRequestLeaderboard
+import dev.nikdekur.nexushub.packet.PacketRequestSync
+import dev.nikdekur.nexushub.packet.PacketRequestTopPosition
+import dev.nikdekur.nexushub.packet.PacketSaveData
+import dev.nikdekur.nexushub.packet.PacketTopPosition
+import dev.nikdekur.nexushub.packet.PacketUserData
+import dev.nikdekur.nexushub.packet.respondError
 import dev.nikdekur.nexushub.scope.Scope
 import dev.nikdekur.nexushub.scope.ScopesService
+import dev.nikdekur.nexushub.serial.SerialService
 import dev.nikdekur.nexushub.service.NexusHubComponent
 import dev.nikdekur.nexushub.session.SessionsService
 import dev.nikdekur.nexushub.storage.StorageService
-import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
-import dev.nikdekur.nexushub.util.GsonSupport
 import dev.nikdekur.nexushub.util.NexusData
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -49,12 +48,13 @@ import kotlin.time.Duration.Companion.seconds
 
 class DefaultNode(
     override val app: NexusHubServer,
-    val talker: ClientTalker,
+    val talker: Talker,
     val account: Account,
     override val id: String,
-) : Node, ClientTalker by talker, NexusHubComponent {
+) : Node, Talker by talker, NexusHubComponent {
 
     val storage: StorageService by inject()
+    val serialService: SerialService by inject()
     val scopesService: ScopesService by inject()
     val sessionsService: SessionsService by inject()
     val nodesService: NodesService by inject()
@@ -95,8 +95,8 @@ class DefaultNode(
         if (!has) {
             this.respond<Unit>(
                 PacketError(
-                    Level.ERROR,
-                    Code.SCOPE_IS_NOT_ALLOWED,
+                    PacketError.Level.ERROR,
+                    PacketError.Code.SCOPE_IS_NOT_ALLOWED,
                     "Scope '${scopeId}' is not allowed for your account"
                 )
             )
@@ -121,8 +121,14 @@ class DefaultNode(
         val createSession = session?.let {
             val node = it.node
             if (node != this) {
-                logger.info("Session already exists for $holderId in $scopeId. Requesting sync and stopping session...")
-                node.requestHolderSyncAndStopSession(scope, holderId)
+                logger.info("Session already exists for $holderId in $scopeId. Denying request.")
+                node.send<Unit>(
+                    PacketError(
+                        PacketError.Level.ERROR,
+                        PacketError.Code.SESSION_ALREADY_EXISTS,
+                        "Another session already exists for this holder. Only one session is allowed."
+                    )
+                )
                 true
             } else false
         } != false
@@ -134,7 +140,7 @@ class DefaultNode(
 
 
         val data = scope.loadData(holderId)
-        val dataStr = GsonSupport.dataToString(data)
+        val dataStr = serialService.serialize(data)
 
         val dataPacket = PacketUserData(holderId, scopeId, dataStr)
         context.respond<Unit>(dataPacket)
@@ -150,7 +156,13 @@ class DefaultNode(
         val dataStr = packet.data
 
         if (dataStr.isBlankOrEmpty()) {
-            context.respond<Unit>(PacketError(Level.ERROR, Code.ERROR_IN_DATA, "Data is empty"))
+            context.respond<Unit>(
+                PacketError(
+                    PacketError.Level.ERROR,
+                    PacketError.Code.ERROR_IN_DATA,
+                    "Data is empty"
+                )
+            )
             return
         }
 
@@ -159,8 +171,8 @@ class DefaultNode(
         if (session != null && session.node != this) {
             context.respond<Unit>(
                 PacketError(
-                    Level.ERROR,
-                    Code.SESSION_ALREADY_EXISTS,
+                    PacketError.Level.ERROR,
+                    PacketError.Code.SESSION_ALREADY_EXISTS,
                     "Another session already exists for this holder. Only one session is allowed."
                 )
             )
@@ -172,8 +184,8 @@ class DefaultNode(
         } catch (_: Exception) {
             context.respond<Unit>(
                 PacketError(
-                    Level.ERROR,
-                    Code.ERROR_IN_DATA,
+                    PacketError.Level.ERROR,
+                    PacketError.Code.ERROR_IN_DATA,
                     "Error while saving data in $scope for $holderId ($dataStr)"
                 )
             )
@@ -211,7 +223,7 @@ class DefaultNode(
                     return@mapNotNull null
                 }
 
-                val data = GsonSupport.dataFromString(dataStr)
+                val data = serialService.deserialize(dataStr)
                 if (data.isEmpty())
                     return@mapNotNull null
 
@@ -246,7 +258,7 @@ class DefaultNode(
             try {
                 scope.getTopPosition(it, field)
             } catch (_: NumberFormatException) {
-                context.respondError(Code.FIELD_IS_NOT_NUMBER)
+                context.respondError(PacketError.Code.FIELD_IS_NOT_NUMBER)
                 return
             }
         }
@@ -271,7 +283,7 @@ class DefaultNode(
         val entry = try {
             scope.getTopPosition(holderId, field)
         } catch (_: NumberFormatException) {
-            context.respondError(Code.FIELD_IS_NOT_NUMBER)
+            context.respondError(PacketError.Code.FIELD_IS_NOT_NUMBER)
             return
         }
 
@@ -287,7 +299,7 @@ class DefaultNode(
     /**
      * Set data to the scope
      *
-     * Before setting data, it will deserialise the data string to [NexusData] and remove empty fields
+     * Before setting data, it will deserialize the data string to [NexusData] and remove empty fields
      *
      * "Set data" means that the data will be saved to the scope cache, but not to the database
      *
@@ -298,76 +310,22 @@ class DefaultNode(
      * @param dataStr data string to set
      */
     suspend fun setData(scope: Scope, holderId: String, dataStr: String) {
-        val data = GsonSupport.dataFromString(dataStr)
+        val data = serialService.deserialize(dataStr)
 
         scope.setData(holderId, data)
     }
 
 
-    suspend fun requestHolderSyncAndStopSession(scope: Scope, holderId: String) {
-        val stopPacket = PacketStopSession(scope.id, holderId)
-
-        sendPacket<Unit>(stopPacket) {
-            receive<PacketSaveData> {
-                if (packet.scopeId != scope.id) {
-                    logger.warn("Received data for different scope: ${packet.scopeId} instead of ${scope.id}")
-                    return@receive
-                }
-
-                if (packet.holderId != holderId) {
-                    logger.warn("Received data for different holder: ${packet.holderId} instead of $holderId")
-                    return@receive
-                }
-
-                val dataStr = packet.data
-                try {
-                    setData(scope, holderId, dataStr)
-                } catch (_: Exception) {
-                    this.respond<Unit>(
-                        PacketError(
-                            Level.ERROR,
-                            Code.ERROR_IN_DATA,
-                            "Error while saving data in $scope for $holderId ($dataStr)"
-                        )
-                    )
-                    return@receive
-                }
-            }
-
-            receive<PacketOk> {
-                // Nothing to save
-            }
-
-            receive<PacketError> {
-                if (packet.code == Code.SESSION_NOT_FOUND) {
-                    logger.warn("Session not found while syncing data with node $this for holder $holderId. Packet: $packet. Removing session...")
-                    sessionsService.stopSession(scope.id, holderId)
-                } else {
-                    logger.error("Error returned while syncing data: $packet")
-                }
-            }
-
-            timeout(5.seconds) {}
-
-            exception {
-                logger.error("Exception occurred while syncing data: $exception")
-            }
-        }.await()
-
-        sessionsService.stopSession(scope.id, holderId)
-    }
-
-
     /**
-     * Request data synchronisation for this node, making it respond with all data related to the scope
+     * Request data synchronization for this node, making it respond with all data related to the scope
      *
      * @param scope scope to sync
      */
-    suspend fun requestSync(scope: Scope) {
+    override suspend fun requestScopeSync(scope: Scope) {
         val syncPacket = PacketRequestSync(scope.id)
 
         @Suppress("RemoveExplicitTypeArguments")
-        sendPacket<Unit>(syncPacket) {
+        send(syncPacket) {
             receive<PacketBatchSaveData> {
                 if (packet.scopeId != scope.id) {
                     logger.warn("Received data for different scope: ${packet.scopeId} instead of ${scope.id}")

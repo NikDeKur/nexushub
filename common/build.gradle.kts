@@ -25,11 +25,17 @@ repositories {
 
 dependencies {
     compileOnly(libs.ndkore)
-    compileOnly(libs.kotlinx.coroutines)
+    compileOnly(libs.kotlinx.serialization.barray)
     compileOnly(libs.slf4j.api)
     compileOnly(libs.kotlinx.serialization)
+    compileOnly(libs.kotlinx.coroutines)
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.slf4j.api)
+    testImplementation(libs.slf4j.simple)
+    testImplementation(libs.ndkore)
+    testImplementation(libs.kotlinx.serialization.barray)
+    testImplementation(libs.kotlinx.coroutines)
 }
 
 tasks.test {

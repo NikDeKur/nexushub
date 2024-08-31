@@ -12,10 +12,10 @@ import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.account.AccountsService
 import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult
+import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.node.isNodeExists
-import dev.nikdekur.nexushub.packet.`in`.PacketAuth
-import dev.nikdekur.nexushub.talker.ClientTalker
+import dev.nikdekur.nexushub.packet.PacketAuth
 import org.slf4j.LoggerFactory
 
 class AccountAuthenticationService(
@@ -27,7 +27,7 @@ class AccountAuthenticationService(
     val nodesService: NodesService by inject()
     val accountsService: AccountsService by inject()
 
-    override suspend fun authenticate(talker: ClientTalker, packet: PacketAuth): AuthResult {
+    override suspend fun authenticate(talker: Talker, packet: PacketAuth): AuthResult {
         val account = accountsService.getAccount(packet.login)
         if (account == null)
             return AuthResult.AccountNotFound

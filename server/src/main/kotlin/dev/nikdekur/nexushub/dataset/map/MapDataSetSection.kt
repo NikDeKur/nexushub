@@ -6,37 +6,67 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
+@file:OptIn(ExperimentalSerializationApi::class, InternalSerializationApi::class)
+
 package dev.nikdekur.nexushub.dataset.map
 
-import dev.nikdekur.ndkore.ext.firstInstanceOrNull
+import dev.nikdekur.ndkore.ext.toBooleanSmartOrNull
 import dev.nikdekur.nexushub.dataset.DataSetSection
-import dev.nikdekur.nexushub.dataset.PropertyName
+import kotlinx.serialization.ContextualSerializer
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.encoding.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
-import kotlin.reflect.full.primaryConstructor
+
+object DynamicLookupSerializer : KSerializer<Any> {
+    override val descriptor: SerialDescriptor = ContextualSerializer(Any::class, null, emptyArray()).descriptor
+
+    override fun serialize(encoder: Encoder, value: Any) {
+        val actualSerializer = encoder.serializersModule.getContextual(value::class) ?: value::class.serializer()
+        @Suppress("UNCHECKED_CAST")
+        encoder.encodeSerializableValue(actualSerializer as KSerializer<Any>, value)
+    }
+
+    override fun deserialize(decoder: Decoder): Any {
+        error("Unsupported")
+    }
+}
 
 open class MapDataSetSection(
+    val json: Json,
     val map: Map<String, Any>
 ) : DataSetSection {
+
 
     override fun getSection(key: String): DataSetSection? {
         @Suppress("UNCHECKED_CAST")
         val map = map[key] as? Map<String, Any> ?: return null
-        return MapDataSetSection(map)
+        return MapDataSetSection(json, map)
     }
+
 
     override operator fun <T : Any> get(key: String, clazz: KClass<T>): T? {
         val at = map[key] ?: return null
         @Suppress("UNCHECKED_CAST")
         if (clazz.isInstance(at)) return at as T
-
-        val constructor = clazz.primaryConstructor
-            ?: throw IllegalArgumentException("No primary constructor for `${clazz.qualifiedName}`")
-        val args = constructor.parameters.associateWith { param ->
-            val annotation = param.annotations.firstInstanceOrNull<PropertyName>()
-            val key = annotation?.name ?: param.name
-            map[key] ?: error("Missing value for `$key`")
+        @Suppress("UNCHECKED_CAST")
+        when (clazz) {
+            String::class -> return at.toString() as T
+            Byte::class -> return at.toString().toByteOrNull() as T
+            Short::class -> return at.toString().toShortOrNull() as T
+            Int::class -> return at.toString().toIntOrNull() as T
+            Long::class -> return at.toString().toLongOrNull() as T
+            Float::class -> return at.toString().toFloatOrNull() as T
+            Double::class -> return at.toString().toDoubleOrNull() as T
+            Boolean::class -> return at.toString().toBooleanSmartOrNull() as T
         }
-        return constructor.callBy(args)
-    }
 
+        val serialized = json.encodeToString(at)
+        return Json.decodeFromString(clazz.serializer(), serialized)
+    }
 }

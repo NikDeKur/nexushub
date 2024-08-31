@@ -1,7 +1,8 @@
 [versions]
 kotlin = "2.0.20"
-kotlinx-coroutines = "1.9.0-RC.2"
 kotlinx-serialization = "1.7.1"
+kotlinx-coroutines = "1.9.0-RC.2"
+barray = "1.0.0"
 slf4j = "2.0.16"
 logback = "1.5.7"
 licenser = "0.6.1"
@@ -20,6 +21,7 @@ koin = "4.0.0-RC1"
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+ktor-websockets = { module = "io.ktor:ktor-websockets", version.ref = "ktor" }
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
 ktor-server-websockets = { module = "io.ktor:ktor-server-websockets-jvm", version.ref = "ktor" }
@@ -32,9 +34,11 @@ ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negoti
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json-jvm", version.ref = "ktor" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 ndkore = { module = "dev.nikdekur:ndkore", version.ref = "ndkore" }
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-barray = { module = "dev.nikdekur:kotlinx-serialization-barray", version.ref = "barray" }
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 yamlkt = { module = "net.mamoe.yamlkt:yamlkt", version.ref = "yamlkt" }
 mongodb = { module = "org.mongodb:mongodb-driver-kotlin-coroutine", version.ref = "mongodb" }
 bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }

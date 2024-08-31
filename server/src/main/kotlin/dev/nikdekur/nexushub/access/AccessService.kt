@@ -8,8 +8,8 @@
 
 package dev.nikdekur.nexushub.access
 
+import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.service.NexusHubService
-import dev.nikdekur.nexushub.talker.ClientTalker
 
 /**
  * # Access Service
@@ -29,7 +29,7 @@ interface AccessService : NexusHubService {
      * @return The result of receiving the data.
      * @see ReceiveResult
      */
-    suspend fun receiveData(talker: ClientTalker, data: ByteArray): ReceiveResult
+    suspend fun receiveData(talker: Talker, data: ByteArray): ReceiveResult
 
     /**
      * The result of receiving data from a client talker.
@@ -50,8 +50,16 @@ interface AccessService : NexusHubService {
      * Implementation might start sending data to the client or start the authentication process.
      *
      * @param talker The client talker.
+     * @return true if the talker is ready to process data, false if the talker closed.
      */
-    suspend fun onReady(talker: ClientTalker)
+    suspend fun onReady(talker: Talker): Boolean
 
-
+    /**
+     * Called when the client talker connection is closed.
+     *
+     * Implementation might clean up resources or notify other services.
+     *
+     * @param talker The client talker.
+     */
+    suspend fun onClose(talker: Talker)
 }

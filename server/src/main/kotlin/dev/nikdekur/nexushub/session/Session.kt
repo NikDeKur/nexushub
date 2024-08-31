@@ -8,11 +8,11 @@
 
 package dev.nikdekur.nexushub.session
 
-import dev.nikdekur.nexushub.node.DefaultNode
+import dev.nikdekur.nexushub.node.Node
 import dev.nikdekur.nexushub.scope.Scope
 
 data class Session(
-    val node: DefaultNode,
+    val node: Node,
     val scope: Scope,
     val holderId: String,
 )

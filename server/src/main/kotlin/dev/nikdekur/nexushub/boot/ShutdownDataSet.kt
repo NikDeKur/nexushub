@@ -8,20 +8,25 @@
 
 package dev.nikdekur.nexushub.boot
 
-import dev.nikdekur.nexushub.dataset.PropertyName
+import dev.nikdekur.nexushub.dataset.LenientDurationSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+@Serializable
 data class ShutdownDataSet(
     /**
      * Grace period to wait for all connections to close before shutting down
      */
-    @PropertyName("grace_period")
+    @SerialName("grace_period")
+    @Serializable(LenientDurationSerializer::class)
     val gracePeriod: Duration = 10.seconds,
 
 
     /**
      * Timeout to wait for all connections to close before shutting down
      */
+    @Serializable(LenientDurationSerializer::class)
     val timeout: Duration = 10.seconds,
 )

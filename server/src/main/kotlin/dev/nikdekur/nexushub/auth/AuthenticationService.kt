@@ -8,15 +8,15 @@
 
 package dev.nikdekur.nexushub.auth
 
+import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.node.Node
-import dev.nikdekur.nexushub.packet.`in`.PacketAuth
+import dev.nikdekur.nexushub.packet.PacketAuth
 import dev.nikdekur.nexushub.service.NexusHubService
-import dev.nikdekur.nexushub.talker.ClientTalker
 
 interface AuthenticationService : NexusHubService {
 
 
-    suspend fun authenticate(talker: ClientTalker, packet: PacketAuth): AuthResult
+    suspend fun authenticate(talker: Talker, packet: PacketAuth): AuthResult
 
     sealed interface AuthResult {
         class Success(val node: Node) : AuthResult

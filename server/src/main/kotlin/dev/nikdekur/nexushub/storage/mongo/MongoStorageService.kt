@@ -26,11 +26,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.runBlocking
+import org.bson.Document
 import org.bson.codecs.configuration.CodecRegistries.fromProviders
 import org.bson.codecs.configuration.CodecRegistries.fromRegistries
 import org.bson.codecs.pojo.PojoCodecProvider
 import org.slf4j.LoggerFactory
-import java.io.File
 
 
 class MongoStorageService(
@@ -50,9 +51,6 @@ class MongoStorageService(
         logger.info { "Initializing Database" }
 
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-        val configFile = File("mongo.yml")
-        require(configFile.exists()) { "Config file not found" }
 
         val config = dataSetService.get<MongoDataSet>("mongo")
             ?: error("Config for Mongo not found")
@@ -78,6 +76,12 @@ class MongoStorageService(
         // Create a new client and connect to the server
         client = MongoClient.create(mongoClientSettings)
         database = client.getDatabase("nexushub")
+
+
+        // Ping the server to see if it's alive
+        runBlocking {
+            database.runCommand(Document("ping", 1))
+        }
 
         logger.info { "Database initialized" }
     }

@@ -14,16 +14,4 @@ import dev.nikdekur.nexushub.NexusHubServer
 interface NexusHubService : Service<NexusHubServer>, NexusHubComponent {
     override val manager
         get() = app.servicesManager
-
-    override fun doEnable() {
-        // Remove standard error handling.
-        // Any error is fatal for the server.
-        onEnable()
-    }
-
-    override fun doDisable() {
-        // Remove standard error handling.
-        // Any error is fatal for the server.
-        onDisable()
-    }
 }

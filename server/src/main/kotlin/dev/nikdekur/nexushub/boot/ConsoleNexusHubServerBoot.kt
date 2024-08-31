@@ -11,7 +11,7 @@ package dev.nikdekur.nexushub.boot
 import dev.nikdekur.ndkore.annotation.DelicateAPI
 import dev.nikdekur.ndkore.ext.addShutdownHook
 import dev.nikdekur.ndkore.service.getService
-import dev.nikdekur.nexushub.KtorNexusHubServer
+import dev.nikdekur.nexushub.ServerFactory
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.get
 import org.slf4j.LoggerFactory
@@ -28,7 +28,8 @@ class ConsoleNexusHubServerBoot {
             val logger = LoggerFactory.getLogger(javaClass)
             try {
                 val environment = ConsoleBootEnvironment.fromCommandLineArgs(args)
-                val server = KtorNexusHubServer(environment)
+                val serverType = environment.getValue("server")
+                val server = ServerFactory.createServer(environment, serverType)
 
                 logger.info("Starting ${server.id}...")
 

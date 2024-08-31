@@ -8,21 +8,25 @@
 
 package dev.nikdekur.nexushub.ratelimit
 
-import dev.nikdekur.nexushub.dataset.PropertyName
+import dev.nikdekur.nexushub.dataset.LenientDurationSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+@Serializable
 data class PeriodRateLimitDataSet(
     /**
      * The maximum number of requests that can be made in the time window
      */
-    @PropertyName("max_requests")
+    @SerialName("max_requests")
     val maxRequests: Long = 1000,
 
 
     /**
      * Time window to limit requests
      */
-    @PropertyName("time_window")
+    @SerialName("time_window")
+    @Serializable(LenientDurationSerializer::class)
     val timeWindow: Duration = 1.seconds
 )

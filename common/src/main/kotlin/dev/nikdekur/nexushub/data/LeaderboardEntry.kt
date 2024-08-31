@@ -8,6 +8,8 @@
 
 package dev.nikdekur.nexushub.data
 
+import kotlinx.serialization.Serializable
+
 /**
  * Leaderboard entry class
  *
@@ -15,6 +17,7 @@ package dev.nikdekur.nexushub.data
  * @param holderId The holder id of the entry
  * @param value The value of the entry
  */
+@Serializable
 data class LeaderboardEntry(
     val position: Long,
     val holderId: String,

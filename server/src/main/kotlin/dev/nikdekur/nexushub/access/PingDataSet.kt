@@ -8,14 +8,19 @@
 
 package dev.nikdekur.nexushub.access
 
+import dev.nikdekur.nexushub.dataset.LenientDurationSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+@Serializable
 data class PingDataSet(
 
     /**
      * The interval to ping the node
      */
+    @Serializable(LenientDurationSerializer::class)
     val interval: Duration = 5.seconds,
 
     /**
@@ -24,5 +29,7 @@ data class PingDataSet(
      * Sum of [interval] and [extraInterval] is the total time to wait for the node to respond
      * before closing the connection
      */
+    @Serializable(LenientDurationSerializer::class)
+    @SerialName("extra_interval")
     val extraInterval: Duration = 3.seconds
 )

@@ -10,8 +10,9 @@ package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.ndkore.`interface`.Snowflake
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
+import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.packet.Packet
-import dev.nikdekur.nexushub.talker.ClientTalker
+import dev.nikdekur.nexushub.scope.Scope
 import kotlin.time.Duration
 
 /**
@@ -19,7 +20,7 @@ import kotlin.time.Duration
  *
  * Represents a Node connected to NexusHub server, which can send and receive packets
  */
-interface Node : ClientTalker, Snowflake<String> {
+interface Node : Talker, Snowflake<String> {
 
     /**
      * Check if the node is alive
@@ -41,4 +42,14 @@ interface Node : ClientTalker, Snowflake<String> {
      * @param context incoming context
      */
     suspend fun processPacket(context: IncomingContext<out Packet>)
+
+    /**
+     * Request a sync for the node
+     *
+     * Sync make node return the latest data for the specified scope
+     * Should suspend until the sync is complete and the latest data is available
+     *
+     * @param scope the scope to sync
+     */
+    suspend fun requestScopeSync(scope: Scope)
 }

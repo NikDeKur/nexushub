@@ -6,12 +6,15 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
+@file:Suppress("NOTHING_TO_INLINE")
+
 package dev.nikdekur.nexushub.network.auth
 
 import dev.nikdekur.ndkore.annotation.DelicateAPI
 import dev.nikdekur.ndkore.service.getService
 import dev.nikdekur.nexushub.KtorNexusHubServer
-import dev.nikdekur.nexushub.http.HTTPAuthService
+import dev.nikdekur.nexushub.network.HeadersMap
+import dev.nikdekur.nexushub.root.auth.AccessAuthService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.plugins.origin
@@ -22,21 +25,23 @@ val TokenAuthenticationPlugin = createRouteScopedPlugin("TokenAuthentication") {
     onCall {
         it.request.origin.apply {
 
-            val authService = KtorNexusHubServer.instance.servicesManager.getService<HTTPAuthService>()
-            val auth = authService.ensureAuthenticated(it)
+            val authService = KtorNexusHubServer.instance.servicesManager.getService<AccessAuthService>()
+            val headers = it.request.headers
+            val mapHeaders = HeadersMap(headers)
+            val auth = authService.getAuthState(mapHeaders)
             when (auth) {
-                HTTPAuthService.EnsureAuthResponse.AUTHENTICATED -> {
+                AccessAuthService.AuthState.AUTHENTICATED -> {
                     // Continue
                 }
 
-                HTTPAuthService.EnsureAuthResponse.UNAUTHENTICATED -> {
+                AccessAuthService.AuthState.UNAUTHENTICATED -> {
                     it.respondText(
                         text = "Use '/login' to authenticate before using this endpoint.",
                         status = HttpStatusCode.Unauthorized
                     )
                 }
 
-                HTTPAuthService.EnsureAuthResponse.BAD_CREDENTIALS -> {
+                AccessAuthService.AuthState.BAD_CREDENTIALS -> {
                     it.respondText(
                         text = "Bad Token",
                         status = HttpStatusCode.Unauthorized
@@ -55,5 +60,12 @@ data class RootToken(
 
     fun isValid(): Boolean {
         return System.currentTimeMillis() < validBy
+    }
+
+    inline fun toMap(): Map<String, Any> {
+        return mapOf(
+            "token" to token,
+            "valid_by" to validBy
+        )
     }
 }

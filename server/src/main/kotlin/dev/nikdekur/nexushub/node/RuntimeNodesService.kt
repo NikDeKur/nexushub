@@ -17,7 +17,7 @@ import dev.nikdekur.nexushub.access.PingDataSet
 import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.get
-import dev.nikdekur.nexushub.talker.ClientTalker
+import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.util.CloseCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -73,14 +73,14 @@ class RuntimeNodesService(
     }
 
 
-    override fun newNode(talker: ClientTalker, account: Account, id: String): Node {
+    override fun newNode(talker: Talker, account: Account, id: String): Node {
         val node = DefaultNode(app, talker, account, id)
         nodesMap[node.id] = node
         nodesMap[node.talker.address.toString()] = node
         return node
     }
 
-    override fun getNode(talker: ClientTalker): Node? {
+    override fun getNode(talker: Talker): Node? {
         return nodesMap[talker.address.toString()]
     }
 
@@ -89,7 +89,7 @@ class RuntimeNodesService(
     }
 
 
-    override fun removeNode(talker: ClientTalker): Node? {
+    override fun removeNode(talker: Talker): Node? {
         return getNode(talker)?.also {
             nodesMap.remove(it.id)
             nodesMap.remove(it.address.toString())

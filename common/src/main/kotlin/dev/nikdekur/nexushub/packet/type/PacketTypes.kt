@@ -11,26 +11,14 @@
 package dev.nikdekur.nexushub.packet.type
 
 import dev.nikdekur.nexushub.packet.*
-import dev.nikdekur.nexushub.packet.`in`.PacketAuth
-import dev.nikdekur.nexushub.packet.`in`.PacketBatchSaveData
-import dev.nikdekur.nexushub.packet.`in`.PacketEndSession
-import dev.nikdekur.nexushub.packet.`in`.PacketHeartbeat
-import dev.nikdekur.nexushub.packet.`in`.PacketHello
-import dev.nikdekur.nexushub.packet.`in`.PacketLoadData
-import dev.nikdekur.nexushub.packet.`in`.PacketRequestLeaderboard
-import dev.nikdekur.nexushub.packet.`in`.PacketRequestTopPosition
-import dev.nikdekur.nexushub.packet.`in`.PacketSaveData
-import dev.nikdekur.nexushub.packet.out.PacketHeartbeatACK
-import dev.nikdekur.nexushub.packet.out.PacketLeaderboard
-import dev.nikdekur.nexushub.packet.out.PacketReady
-import dev.nikdekur.nexushub.packet.out.PacketRequestSync
-import dev.nikdekur.nexushub.packet.out.PacketStopSession
-import dev.nikdekur.nexushub.packet.out.PacketTopPosition
-import dev.nikdekur.nexushub.packet.out.PacketUserData
+import dev.nikdekur.nexushub.packet.PacketAuth
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.serializer
 
 object PacketTypes {
     var entriesSize = 0
-    val entries = Array<PacketType<*>?>(UByte.MAX_VALUE.toInt()) { null }
+    val entries = Array<PacketType?>(UByte.MAX_VALUE.toInt()) { null }
 
     val OK = new<PacketOk>()
     val ERROR = new<PacketError>()
@@ -52,15 +40,13 @@ object PacketTypes {
     val TOP_POSITION = new<PacketTopPosition>()
 
 
-    internal inline fun <reified T : Packet> new(): PacketType<T> {
-        val clazz = T::class.java
-        require(clazz.constructors.any { it.parameterCount == 0 }) {
-            "Packet '${clazz.name}' class should have an empty constructor!"
-        }
+    internal inline fun <reified T : Packet> new(): PacketType {
+        return object : PacketType {
 
-        return object : PacketType<T> {
             override val id = entriesSize.toUByte()
-            override val clazz = clazz
+
+            @OptIn(InternalSerializationApi::class)
+            override val serializer: KSerializer<Packet> = T::class.serializer() as KSerializer<Packet>
         }.also {
             entries[entriesSize] = it
             entriesSize++
@@ -68,11 +54,7 @@ object PacketTypes {
     }
 
 
-    fun fromId(id: UByte): PacketType<*>? {
+    fun fromId(id: UByte): PacketType? {
         return entries.getOrNull(id.toInt())
-    }
-
-    inline fun newInstanceFromId(id: UByte): Packet? {
-        return fromId(id)?.newInstance()
     }
 }

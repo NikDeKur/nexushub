@@ -11,8 +11,8 @@
 package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.nexushub.account.Account
+import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.service.NexusHubService
-import dev.nikdekur.nexushub.talker.ClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
 import kotlin.time.Duration
 
@@ -22,10 +22,10 @@ interface NodesService : NexusHubService {
 
     val nodes: Collection<Node>
 
-    fun newNode(talker: ClientTalker, account: Account, id: String): Node
-    fun getNode(talker: ClientTalker): Node?
+    fun newNode(talker: Talker, account: Account, id: String): Node
+    fun getNode(talker: Talker): Node?
     fun getNode(id: String): Node?
-    fun removeNode(node: ClientTalker): Node?
+    fun removeNode(node: Talker): Node?
 
     /**
      * Close all nodes with the specified code and reason.
@@ -38,7 +38,7 @@ interface NodesService : NexusHubService {
     suspend fun closeAllNodes(code: CloseCode, reason: String)
 }
 
-inline fun NodesService.isNodeExists(talker: ClientTalker) = getNode(talker) != null
+inline fun NodesService.isNodeExists(talker: Talker) = getNode(talker) != null
 inline fun NodesService.isNodeExists(id: String) = getNode(id) != null
 
 

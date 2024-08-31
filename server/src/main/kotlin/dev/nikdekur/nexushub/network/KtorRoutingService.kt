@@ -9,12 +9,17 @@
 package dev.nikdekur.nexushub.network
 
 import dev.nikdekur.ndkore.ext.warn
+import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.access.AccessService
 import dev.nikdekur.nexushub.access.AccessService.ReceiveResult
-import dev.nikdekur.nexushub.account.AccountsService
-import dev.nikdekur.nexushub.http.HTTPAuthService
+import dev.nikdekur.nexushub.access.config.ConfigurationAccessService
+import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.AccountCreationResult
+import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.AccountDeletionResult
+import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.Action
+import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.PasswordChangeResult
+import dev.nikdekur.nexushub.ktor.KtorPacketControllerTalker
 import dev.nikdekur.nexushub.modal.Account
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
@@ -22,12 +27,15 @@ import dev.nikdekur.nexushub.modal.`in`.AccountPasswordRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesListRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesUpdateRequest
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
-import dev.nikdekur.nexushub.modal.out.AccountScopesListResponse
 import dev.nikdekur.nexushub.modal.out.AccountsListResponse
 import dev.nikdekur.nexushub.network.auth.authenticate
+import dev.nikdekur.nexushub.network.talker.Talker
+import dev.nikdekur.nexushub.network.timeout.SchedulerTimeoutService
+import dev.nikdekur.nexushub.root.auth.AccessAuthService
+import dev.nikdekur.nexushub.root.auth.AccessAuthService.LoginResult
+import dev.nikdekur.nexushub.root.auth.AccessAuthService.LogoutResult
+import dev.nikdekur.nexushub.root.auth.Headers
 import dev.nikdekur.nexushub.service.NexusHubService
-import dev.nikdekur.nexushub.talker.ClientTalker
-import dev.nikdekur.nexushub.talker.KtorClientTalker
 import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -42,6 +50,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.utils.io.*
 import io.ktor.websocket.readBytes
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
@@ -49,6 +58,7 @@ import kotlinx.html.body
 import kotlinx.html.p
 import org.slf4j.LoggerFactory
 import java.time.Duration
+import io.ktor.http.Headers as KtorHeaders
 
 class Routing(
     override val app: NexusHubServer,
@@ -57,10 +67,13 @@ class Routing(
 
     val logger = LoggerFactory.getLogger(javaClass)
 
-    val httpAuthService: HTTPAuthService by inject()
-    val accountsService: AccountsService by inject()
-
+    val accessAuthService: AccessAuthService by inject()
     val accessService: AccessService by inject()
+    val configAccessService: ConfigurationAccessService by inject()
+
+    val timeoutService = SchedulerTimeoutService(
+        CoroutineScheduler.fromSupervisor(Dispatchers.IO)
+    )
 
     override fun onEnable() {
         logger.info("Initializing routing")
@@ -76,160 +89,31 @@ class Routing(
 
 
         application.routing {
-            get("/") {
-                call.respondHtml(HttpStatusCode.OK) {
-                    body {
-                        p {
-                            +"NexusHub server is running"
-                        }
-                    }
-                }
-            }
+            get("/") { onRootRequest() }
 
+            webSocket("connection") { wsConnection() }
 
-            route("connection") {
-
-                webSocket {
-                    wsConnection()
-                }
-            }
-
-            post("login") {
-                val request = call.receive<AuthRequest>()
-                httpAuthService.login(call, request)
-            }
+            post("login") { onLoginRequest() }
 
             authenticate {
 
-                post("logout") {
-                    logger.info("[${call.address}] Logging out requested")
-                    httpAuthService.logout(call)
-                }
+                post("logout") { onLogoutRequest() }
 
                 route("accounts") {
 
-                    post("list") {
-                        logger.info("[${call.address}] Accounts list requested")
-                        val accounts = accountsService.getAccounts()
-
-                        val response = AccountsListResponse(
-                            accounts.map {
-                                Account(it.login, it.allowedScopes)
-                            }
-                        )
-                        logger.info("[${call.address}] Responding with accounts list: $response")
-                        call.respond(response)
-                    }
-
-                    post("create") {
-                        logger.info("[${call.address}] Account creation requested")
-                        val request = call.receive<AccountCreateRequest>()
-                        val login = request.login
-                        val account = accountsService.getAccount(login)
-                        if (account != null) {
-                            logger.info("[${call.address}] Account '$login' already exists")
-                            call.respondText(
-                                text = "Account '$login' already exists",
-                                status = HttpStatusCode.Conflict
-                            )
-                            return@post
-                        }
-
-                        val password = request.password
-                        val scopes = request.scopes
-                        accountsService.createAccount(login, password, scopes)
-                        logger.info("[${call.address}] Account '$login' created with scopes: $scopes")
-                        call.respondText("Success")
-                    }
-
-                    post("delete") {
-                        logger.info("[${call.address}] Account deletion requested")
-                        val request = call.receive<AccountDeleteRequest>()
-                        val login = request.login
-                        accountsService.deleteAccount(login)
-                        logger.info("[${call.address}] Account '$login' deleted")
-                        call.respondText("Success")
-                    }
-
-                    post("password") {
-                        logger.info("[${call.address}] Password change requested")
-                        val request = call.receive<AccountPasswordRequest>()
-                        val login = request.login
-                        val account = accountsService.getAccount(login) ?: run {
-                            call.respondText("Account '$login' not found")
-                            return@post
-                        }
-                        val newPassword = request.newPassword
-                        account.changePassword(newPassword)
-                        logger.info("[${call.address}] Password for account '$login' changed")
-                        call.respondText("Success")
-                    }
-
+                    post("list") { onAccountsListRequest() }
+                    post("create") { onAccountCreateRequest() }
+                    post("delete") { onAccountDeleteRequest() }
+                    post("password") { onAccountChangePasswordRequest() }
 
                     route("scopes") {
 
-                        post("list") {
-                            logger.info("[${call.address}] Account scopes list requested")
-                            val request = call.receive<AccountScopesListRequest>()
-                            val login = request.login
-                            val account = accountsService.getAccount(login) ?: run {
-                                call.respondText("Account '$login' not found")
-                                return@post
-                            }
-                            val scopes = account.allowedScopes
-                            val response = AccountScopesListResponse(scopes)
-                            logger.info("[${call.address}] Responding with account '$login' scopes list: $scopes")
-                            call.respond(response)
-                        }
-
-                        post("update") {
-                            logger.info("[${call.address}] Account scopes update requested")
-                            val request = call.receive<AccountScopesUpdateRequest>()
-
-                            val login = request.login
-                            val account = accountsService.getAccount(login) ?: run {
-                                logger.info("[${call.address}] Account '$login' not found")
-                                call.respondText("Account '$login' not found")
-                                return@post
-                            }
-
-                            val action = request.action
-                            val scopes = request.scopes
-                            when (action) {
-                                AccountScopesUpdateRequest.Action.ADD -> {
-                                    scopes.forEach {
-                                        logger.info("[${call.address}] Adding scope '$it' to account '$login'")
-                                        account.allowScope(it)
-                                    }
-                                }
-
-                                AccountScopesUpdateRequest.Action.REMOVE -> {
-                                    scopes.forEach {
-                                        logger.info("[${call.address}] Removing scope '$it' from account '$login'")
-                                        account.removeScope(it)
-                                    }
-                                }
-
-                                AccountScopesUpdateRequest.Action.SET -> {
-                                    account.clearScopes()
-                                    scopes.forEach {
-                                        logger.info("[${call.address}] Allowing scope '$it' (by set) to account '$login'")
-                                        account.allowScope(it)
-                                    }
-                                }
-
-                                AccountScopesUpdateRequest.Action.CLEAR -> {
-                                    logger.info("[${call.address}] Clearing all scopes from account '$login'")
-                                    account.clearScopes()
-                                }
-                            }
-                            call.respondText("Success")
-                        }
+                        post("list") { onAccountScopesListRequest() }
+                        post("update") { onAccountScopesUpdateRequest() }
                     }
                 }
             }
         }
-
 
         logger.info("Routing initialized")
     }
@@ -238,12 +122,11 @@ class Routing(
     suspend inline fun DefaultWebSocketServerSession.wsConnection() {
 
         val address = call.address
-        val talker: ClientTalker = KtorClientTalker(app, this, address)
-
+        val talker: Talker = KtorPacketControllerTalker(this, address, timeoutService)
 
         logger.info("[$address] Connection established")
 
-        launch {
+        val job = launch {
             logger.info("[$address] Connection job started")
             try {
                 incoming.consumeEach { frame ->
@@ -274,6 +157,7 @@ class Routing(
                 }
 
                 logger.info("[$address] Connection job finished. Closing connection")
+
                 talker.close(CloseCode.NORMAL, "Connection closed")
 
             } catch (e: CancellationException) {
@@ -286,7 +170,13 @@ class Routing(
         }
 
         try {
-            accessService.onReady(talker)
+            val result = accessService.onReady(talker)
+            if (result) {
+                // Wait for the job to finish
+                job.join()
+
+                accessService.onClose(talker)
+            }
         } catch (e: Throwable) {
             logger.warn("[$address] Exception occurred!", e)
         }
@@ -298,8 +188,187 @@ class Routing(
         if (talker.isOpen)
             talker.close(CloseCode.NORMAL, "Done")
     }
+
+
+    suspend fun RoutingContext.onRootRequest() {
+        call.respondHtml(HttpStatusCode.OK) {
+            body {
+                p {
+                    +"NexusHub server is running"
+                }
+            }
+        }
+    }
+
+    suspend fun RoutingContext.onLoginRequest() {
+        val request = call.receive<AuthRequest>()
+        val result = accessAuthService.login(request.login, request.password)
+        when (result) {
+            LoginResult.AccountNotFound -> {
+                // When creates more accounts, remember to imitate hashing time
+                // To prevent users to know if the account exists or not.
+                call.respondText(
+                    text = "Account not found",
+                    status = HttpStatusCode.BadRequest
+                )
+            }
+
+            LoginResult.WrongCredentials -> {
+                call.respondText(
+                    text = "Bad Credentials",
+                    status = HttpStatusCode.BadRequest
+                )
+            }
+
+            is LoginResult.Success -> {
+                call.respond(result.data)
+            }
+        }
+    }
+
+
+    suspend fun RoutingContext.onLogoutRequest() {
+        val headers = HeadersMap(call.request.headers)
+        val result = accessAuthService.logout(headers)
+        val (status, text) = when (result) {
+            LogoutResult.NotAuthenticated -> HttpStatusCode.BadRequest to "Not authenticated"
+            LogoutResult.Success -> HttpStatusCode.OK to "Logged out"
+        }
+        call.respondText(text, status = status)
+    }
+
+    suspend fun RoutingContext.onAccountsListRequest() {
+        logger.info("[${call.address}] Accounts list requested")
+        val accounts = configAccessService.listAccounts()
+
+        val response = AccountsListResponse(
+            accounts.map {
+                Account(it.login, it.allowedScopes)
+            }
+        )
+        logger.info("[${call.address}] Responding with accounts list: $response")
+        call.respond(response)
+    }
+
+    suspend fun RoutingContext.onAccountCreateRequest() {
+        logger.info("[${call.address}] Account creation requested")
+        val request = call.receive<AccountCreateRequest>()
+
+        val result = configAccessService.createAccount(request.login, request.password, request.scopes)
+        val (status, message) = when (result) {
+            is AccountCreationResult.Success -> {
+                logger.info("[${call.address}] Account '${request.login}' created with scopes: ${request.scopes}")
+                HttpStatusCode.OK to "Success"
+            }
+
+            AccountCreationResult.AccountAlreadyExists -> {
+                logger.info("[${call.address}] Account '${request.login}' already exists")
+                HttpStatusCode.BadRequest to "Account '${request.login}' already exists"
+            }
+        }
+
+        call.respondText(message, status = status)
+    }
+
+
+    suspend fun RoutingContext.onAccountDeleteRequest() {
+        logger.info("[${call.address}] Account deletion requested")
+        val request = call.receive<AccountDeleteRequest>()
+        val login = request.login
+        val result = configAccessService.deleteAccount(login)
+        val (status, message) = when (result) {
+            AccountDeletionResult.Success -> {
+                logger.info("[${call.address}] Account '$login' deleted")
+                HttpStatusCode.OK to "Success"
+            }
+
+            AccountDeletionResult.AccountNotFound -> {
+                logger.info("[${call.address}] Account '$login' not found")
+                HttpStatusCode.BadRequest to "Account '$login' not found"
+            }
+        }
+
+        call.respondText(message, status = status)
+    }
+
+
+    suspend fun RoutingContext.onAccountChangePasswordRequest() {
+        logger.info("[${call.address}] Password change requested")
+        val request = call.receive<AccountPasswordRequest>()
+        val login = request.login
+
+        val result = configAccessService.changePassword(login, request.newPassword)
+        val (status, message) = when (result) {
+            PasswordChangeResult.Success -> {
+                logger.info("[${call.address}] Password for account '$login' changed")
+                HttpStatusCode.OK to "Success"
+            }
+
+            PasswordChangeResult.AccountNotFound -> {
+                logger.info("[${call.address}] Account '$login' not found")
+                HttpStatusCode.BadRequest to "Account '$login' not found"
+            }
+        }
+        call.respondText(message, status = status)
+    }
+
+    suspend fun RoutingContext.onAccountScopesListRequest() {
+        logger.info("[${call.address}] Account scopes list requested")
+        val request = call.receive<AccountScopesListRequest>()
+        val login = request.login
+        val result = configAccessService.listAccountScopes(login)
+        val (status, message) = when (result) {
+            is ConfigurationAccessService.AccountScopesListResult.Success -> {
+                logger.info("[${call.address}] Account '$login' scopes list: ${result.scopes}")
+                HttpStatusCode.OK to "Success"
+            }
+
+            ConfigurationAccessService.AccountScopesListResult.AccountNotFound -> {
+                logger.info("[${call.address}] Account '$login' not found")
+                HttpStatusCode.BadRequest to "Account '$login' not found"
+            }
+        }
+        call.respondText(message, status = status)
+    }
+
+
+    suspend fun RoutingContext.onAccountScopesUpdateRequest() {
+        logger.info("[${call.address}] Account scopes update requested")
+        val request = call.receive<AccountScopesUpdateRequest>()
+
+        val login = request.login
+
+        val action = Action.valueOf(request.action.name)
+        val result = configAccessService.changeAccountScopes(login, action, request.scopes)
+        val (status, message) = when (result) {
+            ConfigurationAccessService.AccountScopesChangeResult.Success -> {
+                logger.info("[${call.address}] Account '$login' scopes updated")
+                HttpStatusCode.OK to "Success"
+            }
+
+            ConfigurationAccessService.AccountScopesChangeResult.AccountNotFound -> {
+                logger.info("[${call.address}] Account '$login' not found")
+                HttpStatusCode.BadRequest to "Account '$login' not found"
+            }
+        }
+
+        call.respondText(message, status = status)
+    }
 }
 
+
+class HeadersMap(private val headers: KtorHeaders) : Headers {
+    override val entries = headers.entries()
+    override val keys = headers.names()
+    override val size = headers.entries().size
+    override val values: Collection<List<String>>
+        get() = entries.mapTo(LinkedHashSet()) { it.value }
+
+    override fun containsKey(key: String): Boolean = headers.contains(key)
+    override fun containsValue(value: List<String>): Boolean = values.contains(value)
+    override fun get(key: String): List<String>? = headers.getAll(key)
+    override fun isEmpty(): Boolean = headers.isEmpty()
+}
 
 inline val ApplicationCall.address: Address
     get() = request.origin.let {

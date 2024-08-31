@@ -14,15 +14,11 @@ import dev.nikdekur.nexushub.storage.account.AccountDAO
 
 interface AccountsService : NexusHubService {
 
-    fun getAccounts(): Collection<Account>
+    suspend fun getAccounts(): Collection<Account>
 
-    fun getAccount(login: String): Account?
+    suspend fun getAccount(login: String): Account?
     suspend fun updateAccount(dao: AccountDAO)
-    suspend fun createAccount(
-        login: String,
-        password: String,
-        allowedScopes: Set<String>
-    ): Account
+    suspend fun createAccount(login: String, password: String, allowedScopes: Iterable<String>): Account
 
     /**
      * Deletes an account from the database and the cache.

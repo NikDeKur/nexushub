@@ -11,14 +11,14 @@ package dev.nikdekur.nexushub.event
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
 import dev.nikdekur.nexushub.packet.Packet
-import dev.nikdekur.nexushub.packet.`in`.PacketHello
-import dev.nikdekur.nexushub.packet.out.PacketHeartbeatACK
-import dev.nikdekur.nexushub.packet.out.PacketLeaderboard
-import dev.nikdekur.nexushub.packet.out.PacketReady
-import dev.nikdekur.nexushub.packet.out.PacketRequestSync
-import dev.nikdekur.nexushub.packet.out.PacketStopSession
-import dev.nikdekur.nexushub.packet.out.PacketTopPosition
-import dev.nikdekur.nexushub.packet.out.PacketUserData
+import dev.nikdekur.nexushub.packet.PacketHeartbeatACK
+import dev.nikdekur.nexushub.packet.PacketHello
+import dev.nikdekur.nexushub.packet.PacketLeaderboard
+import dev.nikdekur.nexushub.packet.PacketReady
+import dev.nikdekur.nexushub.packet.PacketRequestSync
+import dev.nikdekur.nexushub.packet.PacketStopSession
+import dev.nikdekur.nexushub.packet.PacketTopPosition
+import dev.nikdekur.nexushub.packet.PacketUserData
 
 sealed class NetworkEvent(val context: IncomingContext<out Packet>) : Event() {
 

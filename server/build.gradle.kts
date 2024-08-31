@@ -32,6 +32,8 @@ repositories {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":ktor-utils"))
+
     implementation(libs.logback)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
@@ -42,6 +44,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.ndkore)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.barray)
     implementation(libs.yamlkt)
     implementation(libs.mongodb)
     implementation(libs.bouncycastle.prov)
@@ -50,8 +53,9 @@ dependencies {
     implementation(libs.koin)
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.serialization.barray)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.slf4j.api)
-    testImplementation(libs.slf4j.simple)
     testImplementation(libs.koin)
 }
 
@@ -59,6 +63,11 @@ val javaVersion = JavaVersion.VERSION_11
 java {
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
+}
+
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 
@@ -84,8 +93,4 @@ tasks.withType<ShadowJar> {
     archiveFileName.set("${project.name}-${project.version}.jar")
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-tasks.test {
-    useJUnitPlatform()
 }

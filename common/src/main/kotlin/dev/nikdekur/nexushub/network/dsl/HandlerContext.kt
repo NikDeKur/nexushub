@@ -24,16 +24,7 @@ interface HandlerContext<R> {
             packet: Packet,
             builder: PacketReaction.Builder<R>.() -> Unit = {}
         ): PacketTransmission<R> {
-            val reaction = PacketReaction.Builder<R>()
-                .apply(builder)
-                .build()
-            val transmission = PacketTransmission(
-                packet,
-                reaction
-            )
-            transmission.respondTo = this.packet
-            talker.send(transmission)
-            return transmission
+            return talker.send(packet, builder, this.packet.sequantial)
         }
     }
 

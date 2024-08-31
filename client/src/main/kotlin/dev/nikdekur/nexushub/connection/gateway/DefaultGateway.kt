@@ -9,16 +9,16 @@
 package dev.nikdekur.nexushub.connection.gateway
 
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
-import dev.nikdekur.nexushub.connection.ServerTalker
 import dev.nikdekur.nexushub.connection.State
 import dev.nikdekur.nexushub.connection.handler.AuthenticationHandler
 import dev.nikdekur.nexushub.connection.handler.HeartbeatHandler
 import dev.nikdekur.nexushub.event.Close
 import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.event.NetworkEvent
+import dev.nikdekur.nexushub.ktor.KtorPacketControllerTalker
 import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
-import dev.nikdekur.nexushub.network.talker.sendPacket
+import dev.nikdekur.nexushub.network.timeout.SchedulerTimeoutService
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.*
 import dev.nikdekur.nexushub.util.CloseCode
@@ -29,7 +29,6 @@ import io.ktor.websocket.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -57,6 +56,10 @@ class DefaultGateway(
 
     private val authenticationHandler = AuthenticationHandler(data.eventFlow, retry)
 
+    val timeoutsService = SchedulerTimeoutService(
+        CoroutineScheduler(CoroutineScope(coroutineContext))
+    )
+
     init {
         HeartbeatHandler(
             flow = data.eventFlow,
@@ -69,7 +72,7 @@ class DefaultGateway(
     val logger = LoggerFactory.getLogger("NexusHubGateway")
 
     var client: HttpClient? = null
-    var talker: ServerTalker? = null
+    var talker: KtorPacketControllerTalker? = null
 
     private val _ping = MutableStateFlow<Duration?>(null)
     override val ping: StateFlow<Duration?> get() = _ping
@@ -82,7 +85,7 @@ class DefaultGateway(
     ): PacketTransmission<R> {
         check(state != State.Detached) { "The resources of this gateway are detached, create another one" }
 
-        return talker!!.sendPacket(packet, block)
+        return talker!!.send(packet, block)
     }
 
     private fun resetState(configuration: GatewayConfiguration) {
@@ -125,7 +128,7 @@ class DefaultGateway(
                 Address(it.host, it.port)
             }
 
-            talker = ServerTalker(socket, Dispatchers.IO, address)
+            talker = KtorPacketControllerTalker(socket, address, timeoutsService)
 
             // Incoming would end on close
             try {
@@ -149,10 +152,11 @@ class DefaultGateway(
 
 
     private suspend fun readSocket() {
-        talker!!.websocket.incoming.asFlow().buffer(Channel.UNLIMITED).collect {
+        val talker = talker!!
+        talker.websocket.incoming.asFlow().buffer(Channel.UNLIMITED).collect {
             when (it) {
                 is Frame.Binary -> {
-                    val context = talker!!.receive(it.readBytes()) ?: return@collect
+                    val context = talker.receive(it.readBytes()) ?: return@collect
 
                     if (context.isResponse) return@collect
 
@@ -195,18 +199,23 @@ class DefaultGateway(
         data.eventFlow.emit(Close.UserClose)
         state = State.Stopped
         _ping.value = null
-        if (talker?.isOpen == true)
-            talker!!.close(CloseCode.NORMAL, "Leaving")
+
+        val talker = talker ?: return
+
+        if (talker.isOpen == true)
+            talker.close(CloseCode.NORMAL, "Leaving")
     }
 
     override suspend fun detach() {
-        (this as CoroutineScope).cancel()
+        this.cancel()
         if (state is State.Detached) return
         state = State.Detached
         _ping.value = null
         data.eventFlow.emit(Close.Detach)
-        val talker = talker
-        if (talker?.isOpen == true) {
+
+        val talker = talker ?: return
+
+        if (talker.isOpen == true) {
             talker.close(CloseCode.NORMAL, "Leaving")
         }
         client?.close()

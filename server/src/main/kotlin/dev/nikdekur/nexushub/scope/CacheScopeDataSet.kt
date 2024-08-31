@@ -8,17 +8,22 @@
 
 package dev.nikdekur.nexushub.scope
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
+@Serializable
 data class CacheScopeDataSet(
     /**
      * Interval to clear cached holder data after write/access
      */
+    @SerialName("cache_expiration")
     val cacheExpiration: Duration = 5.minutes,
 
     /**
      * Maximum number of cached holder data by each scope
      */
+    @SerialName("cache_max_size")
     val cacheMaxSize: Long = 1000
 )

@@ -10,14 +10,16 @@ package dev.nikdekur.nexushub.connection.handler
 
 import dev.nikdekur.ndkore.scheduler.Scheduler
 import dev.nikdekur.ndkore.scheduler.SchedulerTask
+import dev.nikdekur.ndkore.scheduler.runTaskTimer
 import dev.nikdekur.nexushub.event.Close
 import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.event.NetworkEvent
 import dev.nikdekur.nexushub.event.NetworkEvent.HeartbeatACK
 import dev.nikdekur.nexushub.packet.Packet
-import dev.nikdekur.nexushub.packet.`in`.PacketHeartbeat
+import dev.nikdekur.nexushub.packet.PacketHeartbeat
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -36,7 +38,7 @@ internal class HeartbeatHandler(
 
     override fun start() {
         on<NetworkEvent.ReadyEvent> { ready ->
-            val interval = ready.heartbeatInterval.toLong()
+            val interval = ready.heartbeatInterval.milliseconds
             task = scheduler.runTaskTimer(interval) {
                 timestamp = timeSource.markNow()
                 send(PacketHeartbeat())

@@ -8,6 +8,9 @@
 
 package dev.nikdekur.nexushub.storage.mongo
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MongoDataSet(
     val url: String
 )

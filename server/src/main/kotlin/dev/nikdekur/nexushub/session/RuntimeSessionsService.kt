@@ -16,7 +16,7 @@ import dev.nikdekur.ndkore.map.get
 import dev.nikdekur.ndkore.map.put
 import dev.nikdekur.ndkore.map.remove
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.node.DefaultNode
+import dev.nikdekur.nexushub.node.Node
 import dev.nikdekur.nexushub.scope.Scope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,13 +46,13 @@ class RuntimeSessionsService(
     //                                    scope   holder
     val sessions: MutableMultiMap<String, String, Session> = ConcurrentHashMap()
     val nodeToSessions: MutableSetsMap<String, Session> = ConcurrentHashMap()
-    val scopeToNodes: MutableSetsMap<String, DefaultNode> = ConcurrentHashMap()
+    val scopeToNodes: MutableSetsMap<String, Node> = ConcurrentHashMap()
 
     override fun getExistingSession(scopeId: String, holderId: String): Session? {
         return sessions[scopeId, holderId]
     }
 
-    override fun startSession(node: DefaultNode, scope: Scope, holderId: String) {
+    override fun startSession(node: Node, scope: Scope, holderId: String) {
         val session = Session(node, scope, holderId)
         sessions.put(scope.id, holderId, session, ::ConcurrentHashMap)
         nodeToSessions.add(node.id, session, ::ConcurrentHashSet)
@@ -69,7 +69,7 @@ class RuntimeSessionsService(
     }
 
 
-    override fun stopAllSessions(node: DefaultNode) {
+    override fun stopAllSessions(node: Node) {
         val nodeSessions = nodeToSessions.remove(node.id)
         nodeSessions?.forEach {
             sessions.remove(it.scope.id, it.holderId)
@@ -77,7 +77,7 @@ class RuntimeSessionsService(
         }
     }
 
-    override fun hasAnySessions(node: DefaultNode): Boolean {
+    override fun hasAnySessions(node: Node): Boolean {
         return nodeToSessions.contains(node.id)
     }
 
@@ -87,7 +87,7 @@ class RuntimeSessionsService(
 
         nodes.map {
             syncingScope.async {
-                it.requestSync(scope)
+                it.requestScopeSync(scope)
             }
         }.awaitAll()
     }

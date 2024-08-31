@@ -12,8 +12,8 @@ import dev.nikdekur.nexushub.packet.Packet
 import kotlin.time.Duration
 
 data class PacketReaction<R>(
-    val receiveHandles: MutableMap<Class<out Packet>?, ReceiveHandler<Packet, R>>,
-    val timeouts: MutableMap<Duration, TimeoutHandler<R>>,
+    val receiveHandles: Map<Class<out Packet>?, ReceiveHandler<Packet, R>>,
+    val timeouts: Map<Duration, TimeoutHandler<R>>,
     val onException: ExceptionHandler<R>?
 ) {
 
@@ -65,4 +65,12 @@ data class PacketReaction<R>(
         }
     }
 
+
+    companion object {
+        val EMPTY by lazy {
+            PacketReaction<Unit>(emptyMap(), emptyMap(), null)
+        }
+    }
 }
+
+typealias PacketReactionBuilder<R> = PacketReaction.Builder<R>.() -> Unit

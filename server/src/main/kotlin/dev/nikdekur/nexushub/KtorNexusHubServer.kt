@@ -41,7 +41,7 @@ data class SSL(
 
 class KtorNexusHubServer(
     override val environment: Environment
-) : AbstractNexusHubServer() {
+) : ProductionNexusHubServer() {
 
     lateinit var server: EmbeddedServer<*, *>
 
