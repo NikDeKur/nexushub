@@ -14,18 +14,16 @@ import dev.nikdekur.ndkore.service.dependencies
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.account.AccountsService
+import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.runBlocking
-import org.slf4j.LoggerFactory
 
 class EnvironmentSetupService(
     override val app: NexusHubServer
-) : SetupService {
+) : NexusHubService(), SetupService {
 
     override val dependencies = dependencies {
         after(AccountsService::class)
     }
-
-    val logger = LoggerFactory.getLogger(javaClass)
 
     val accountsService: AccountsService by inject()
 

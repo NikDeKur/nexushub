@@ -8,16 +8,32 @@
 
 package dev.nikdekur.nexushub.account
 
-import dev.nikdekur.nexushub.protection.Password
-import dev.nikdekur.nexushub.service.NexusHubService
-import dev.nikdekur.nexushub.storage.account.AccountDAO
+interface AccountsService {
 
-interface AccountsService : NexusHubService {
-
+    /**
+     * Gets all accounts.
+     *
+     * @return All accounts.
+     */
     suspend fun getAccounts(): Collection<Account>
 
+    /**
+     * Gets an account by its login.
+     *
+     * @param login The login of the account to get.
+     * @return The account with the given login, or null if no such account exists.
+     */
     suspend fun getAccount(login: String): Account?
-    suspend fun updateAccount(dao: AccountDAO)
+
+    /**
+     * Creates a new account with the given login, password and allowed scopes.
+     *
+     * @param login The login of the account to create.
+     * @param password The password of the account to create.
+     * @param allowedScopes The scopes that the account is allowed to access.
+     * @return The created account.
+     * @throws AccountAlreadyExistsException If an account with the given login already exists.
+     */
     suspend fun createAccount(login: String, password: String, allowedScopes: Iterable<String>): Account
 
     /**
@@ -28,8 +44,4 @@ interface AccountsService : NexusHubService {
      * @param login The login of the account to delete.
      */
     suspend fun deleteAccount(login: String)
-
-
-    suspend fun matchPassword(pass1: Password, pass2: String): Boolean
-
 }

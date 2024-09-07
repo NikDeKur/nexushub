@@ -11,13 +11,14 @@ package dev.nikdekur.nexushub.dataset.config
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.map.MapDataSetService
+import dev.nikdekur.nexushub.service.NexusHubService
 import net.mamoe.yamlkt.Yaml
 import java.io.File
 import kotlin.reflect.KClass
 
 class ConfigDataSetService(
     override val app: NexusHubServer
-) : DataSetService {
+) : NexusHubService(), DataSetService {
 
     private var _delegate: MapDataSetService? = null
     val delegate

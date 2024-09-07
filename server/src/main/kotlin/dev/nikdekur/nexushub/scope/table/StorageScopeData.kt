@@ -8,12 +8,9 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.scope
+package dev.nikdekur.nexushub.scope.table
 
-import dev.nikdekur.ndkore.service.inject
-import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.service.NexusHubComponent
-import dev.nikdekur.nexushub.storage.StorageService
+import dev.nikdekur.nexushub.scope.StorageScopesService
 import dev.nikdekur.nexushub.storage.StorageTable
 import dev.nikdekur.nexushub.storage.index.indexOptions
 import dev.nikdekur.nexushub.storage.request.Filter
@@ -23,27 +20,23 @@ import dev.nikdekur.nexushub.storage.request.eq
 import dev.nikdekur.nexushub.storage.request.gt
 import dev.nikdekur.nexushub.storage.request.ne
 import dev.nikdekur.nexushub.storage.scope.ScopeDAO
-import dev.nikdekur.nexushub.storage.scope.ScopeTable
 import dev.nikdekur.nexushub.util.NexusData
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.singleOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import org.bson.Document
 import org.slf4j.LoggerFactory
 
-class StorageScopeTable(
-    override val app: NexusHubServer,
+data class StorageScopeData(
+    val service: StorageScopesService,
+    val scope: CoroutineScope,
     /**
      * The id of the scope
      */
-    override val id: String,
+    val id: String,
     val table: StorageTable<NexusData>,
-    override var data: ScopeDAO
-) : ScopeTable, NexusHubComponent {
-
-    val storage: StorageService by inject()
-    val scopesService: ScopesService by inject()
+    var data: ScopeDAO
+) : ScopeData {
 
     val logger = LoggerFactory.getLogger("ScopeCollection")
 
@@ -73,16 +66,17 @@ class StorageScopeTable(
             return
         }
 
-        val dataDocument = Document("holderId", holderId).apply {
-            data.forEach { (key, value) -> append(key, value) }
-        }
+        val data = LinkedHashMap(data)
+            .also {
+                it["holderId"] = holderId
+            }
 
         // If the old data does not exist, insert the new data
         if (old == null) {
-            table.insertOne(dataDocument)
+            table.insertOne(data)
         } else {
             // If the old data exists, update the data
-            table.replaceOne(dataDocument, idFilter(holderId))
+            table.replaceOne(data, idFilter(holderId))
         }
     }
 
@@ -93,26 +87,19 @@ class StorageScopeTable(
 
 
     override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): List<NexusData> {
+
         ensureIndexAsync(field)
         return table
-            .find(sort = Sort(field, Order.DESCENDING), limit = limit, skip = startFrom)
+            .find(
+                sort = Sort(field, Order.DESCENDING),
+                limit = limit,
+                skip = startFrom
+            )
             .toList()
     }
 
-    /**
-     * Get the top position in the leaderboard for the given field of the given holder
-     *
-     * If no field is found for the holder or field is not a double, null is returned
-     *
-     * The top position is started from 0, so the top position is 0, the second position is 1, and so on
-     *
-     * @param holderId holder id
-     * @param field field to get the top position for
-     * @param value value to compare
-     * @return the top position in the leaderboard for the given field of the given holder
-     */
     override suspend fun getTopPosition(holderId: String, field: String, value: Double): Long {
-        // Count the number of documents that have a value greater than the given value,
+        // Count the number of data`s that has a value greater than the given value,
         // And the holderId is not the given holderId (to exclude the given holderId)
         logger.info("[$id] Getting top position for $holderId with $field > $value")
         ensureIndexAsync(field)
@@ -125,14 +112,14 @@ class StorageScopeTable(
     }
 
 
-    private inline fun ensureIndexAsync(field: String): Job? {
-        if (data.indexes.contains(field)) return null
+    inline fun ensureIndexAsync(field: String) {
+        scope.launch {
+            if (data.indexes.contains(field)) return@launch
 
-        return storage.scope.launch {
             // Update scope in another coroutine to avoid blocking
             data = data.copy(indexes = data.indexes + field)
             createIndex(field, false)
-            scopesService.updateScopeData(data)
+            service.updateScopeData(data)
         }
     }
 

@@ -9,36 +9,35 @@
 package dev.nikdekur.nexushub.packet
 
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
-import dev.nikdekur.nexushub.packet.PacketError.Code
 import dev.nikdekur.nexushub.packet.type.PacketTypes
 import kotlinx.serialization.Serializable
 
+enum class ErrorLevel {
+    WARNING,
+    ERROR,
+    FATAL
+}
+
+enum class ErrorCode(val defLevel: ErrorLevel, val defMessage: String) {
+    UNKNOWN(ErrorLevel.ERROR, "Unknown error"),
+    SCOPE_IS_NOT_ALLOWED(ErrorLevel.ERROR, "Scope is not allowed"),
+    SESSION_ALREADY_EXISTS(ErrorLevel.ERROR, "Session already exists"),
+    SESSION_NOT_FOUND(ErrorLevel.ERROR, "Session not found"),
+    ERROR_IN_DATA(ErrorLevel.ERROR, "Data is not valid "),
+    FIELD_IS_NOT_NUMBER(ErrorLevel.ERROR, "Field is not a number, that can be converted to double!"),
+}
+
 @Serializable
 data class PacketError(
-    var level: Level,
-    var code: Code,
+    val level: ErrorLevel,
+    val code: ErrorCode,
     val message: String
 ) : Packet() {
 
     override fun getType() = PacketTypes.ERROR
-
-    enum class Level {
-        WARNING,
-        ERROR,
-        FATAL
-    }
-
-    enum class Code(val defLevel: Level, val defMessage: String) {
-        UNKNOWN(Level.ERROR, "Unknown error"),
-        SCOPE_IS_NOT_ALLOWED(Level.ERROR, "Scope is not allowed"),
-        SESSION_ALREADY_EXISTS(Level.ERROR, "Session already exists"),
-        SESSION_NOT_FOUND(Level.ERROR, "Session not found"),
-        ERROR_IN_DATA(Level.ERROR, "Data is not valid "),
-        FIELD_IS_NOT_NUMBER(Level.ERROR, "Field is not a number, that can be converted to double!"),
-    }
 }
 
-suspend inline fun IncomingContext<out Packet>.respondError(code: Code) =
+suspend inline fun IncomingContext<out Packet>.respondError(code: ErrorCode) =
     respond<Unit>(PacketError(code.defLevel, code, code.defMessage))
 
 

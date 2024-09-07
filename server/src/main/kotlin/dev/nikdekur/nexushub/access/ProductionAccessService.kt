@@ -22,6 +22,7 @@ import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult.NodeAtAddress
 import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult.NodeNameInvalid
 import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult.Success
 import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult.WrongCredentials
+import dev.nikdekur.nexushub.auth.Credentials
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.node.NodesService
@@ -29,8 +30,10 @@ import dev.nikdekur.nexushub.packet.PacketAuth
 import dev.nikdekur.nexushub.packet.PacketHeartbeat
 import dev.nikdekur.nexushub.packet.PacketHello
 import dev.nikdekur.nexushub.packet.PacketReady
+import dev.nikdekur.nexushub.ping.PingService
 import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.ratelimit.RateLimitService
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.session.SessionsService
 import dev.nikdekur.nexushub.util.CloseCode
 import kotlinx.coroutines.CoroutineScope
@@ -38,21 +41,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import kotlin.time.Duration.Companion.seconds
 
 class ProductionAccessService(
     override val app: NexusHubServer
-) : AccessService {
+) : NexusHubService(), AccessService {
 
     override val dependencies = dependencies {
         after(DataSetService::class)
     }
 
-    val logger = LoggerFactory.getLogger(javaClass)
-
     val nodesService: NodesService by inject()
+    val pingService: PingService by inject()
     val sessionsService: SessionsService by inject()
     val rateLimitService: RateLimitService by inject()
     val authService: AuthenticationService by inject()
@@ -128,13 +129,20 @@ class ProductionAccessService(
 
             receive<PacketAuth> {
                 logger.info { "Authenticating node: ${packet.node}" }
-                val result = authService.authenticate(talker, packet)
+
+                val credentials = Credentials(
+                    login = packet.login,
+                    password = packet.password,
+                    node = packet.node
+                )
+
+                val result = authService.authenticate(talker, credentials)
                 return@receive when (result) {
                     is Success -> {
                         val node = result.node
                         logger.info("[$address] Authenticated successfully")
 
-                        val ready = PacketReady(nodesService.pingInterval.inWholeMilliseconds)
+                        val ready = PacketReady(pingService.pingInterval.inWholeMilliseconds)
                         node.send<Unit>(ready)
 
                         true

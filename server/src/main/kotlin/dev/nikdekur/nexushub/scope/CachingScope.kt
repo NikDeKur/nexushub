@@ -10,54 +10,28 @@
 
 package dev.nikdekur.nexushub.scope
 
-import com.google.common.cache.Cache
-import com.google.common.cache.CacheBuilder
 import dev.nikdekur.ndkore.ext.*
-import dev.nikdekur.ndkore.service.inject
-import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.data.buildLeaderboard
-import dev.nikdekur.nexushub.dataset.DataSetService
-import dev.nikdekur.nexushub.dataset.get
-import dev.nikdekur.nexushub.service.NexusHubComponent
-import dev.nikdekur.nexushub.storage.scope.ScopeTable
+import dev.nikdekur.nexushub.scope.table.ScopeData
 import dev.nikdekur.nexushub.util.NexusData
 import org.slf4j.LoggerFactory
-import kotlin.time.toJavaDuration
 
 
-data class StorageScope(
-    override val app: NexusHubServer,
+class CachingScope(
     override val id: String,
-    val table: ScopeTable
-) : Scope, NexusHubComponent {
+    val data: ScopeData,
+    val cache: MutableMap<String, NexusData>
+) : Scope {
 
     val logger = LoggerFactory.getLogger(javaClass)
 
-    val datasetService: DataSetService by inject()
-
-
-
-    //              HolderId
-    val cache: Cache<String, NexusData> by lazy {
-        CacheBuilder.newBuilder()
-            .apply {
-                val cache = datasetService.get<CacheScopeDataSet>("cache") ?: CacheScopeDataSet()
-                val cacheExpiration = cache.cacheExpiration.toJavaDuration()
-                val cacheSize = cache.cacheMaxSize
-                expireAfterWrite(cacheExpiration)
-                expireAfterAccess(cacheExpiration)
-                maximumSize(cacheSize)
-            }.build()
-    }
-
 
     override suspend fun loadData(holderId: String): NexusData {
-        // Don't use cache[holderId] because CacheBuilder doesn't support async loading
-        val cached = cache.getIfPresent(holderId)
+        val cached = cache[holderId]
         if (cached != null) return cached
-        val data = table.findOrNull(holderId) ?: emptyMap()
+        val data = data.findOrNull(holderId) ?: emptyMap()
         cache.put(holderId, data)
         return data
     }
@@ -66,17 +40,17 @@ data class StorageScope(
     override suspend fun setData(holderId: String, data: NexusData) {
         val clean = data.removeEmpty(maps = true, collections = true)
         cache.put(holderId, clean)
-        table.save(holderId, clean)
+        this.data.save(holderId, clean)
     }
 
 
-    override suspend fun getLeaderboard(path: String, startFrom: Int, limit: Int): Leaderboard {
+    override suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard {
         val leaderboard = logger.recordTiming(name = "getLeaderboard") {
-            val rawLeaderboard = table.getLeaderboard(path, startFrom, limit)
+            val rawLeaderboard = data.getLeaderboard(field, startFrom, limit)
 
             logger.info("Raw leaderboard: $rawLeaderboard")
 
-            val pathList = path.split('.')
+            val pathList = field.split('.')
 
             buildLeaderboard {
                 this.startFrom = startFrom
@@ -124,7 +98,7 @@ data class StorageScope(
                 throw NumberFormatException("Field $field is not a number")
             val value = fieldValue.toDouble()
 
-            val position = table.getTopPosition(holderId, field, value)
+            val position = this.data.getTopPosition(holderId, field, value)
 
             LeaderboardEntry(position, holderId, value)
         }

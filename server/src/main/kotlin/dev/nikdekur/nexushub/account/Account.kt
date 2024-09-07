@@ -8,51 +8,17 @@
 
 package dev.nikdekur.nexushub.account
 
-import dev.nikdekur.ndkore.service.inject
-import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
-import dev.nikdekur.nexushub.protection.ProtectionService
-import dev.nikdekur.nexushub.service.NexusHubComponent
-import dev.nikdekur.nexushub.storage.account.AccountDAO
 
-data class Account(
-    override val app: NexusHubServer,
-    var dao: AccountDAO,
-    var password: Password,
-    private val _allowedScopes: MutableSet<String>
-) : NexusHubComponent {
+interface Account {
 
-    val login get() = dao.login
+    val login: String
+    val password: Password
 
-    val protectionService: ProtectionService by inject()
-    val accountsService: AccountsService by inject()
+    suspend fun changePassword(newPassword: Password)
 
-    val allowedScopes: Set<String>
-        get() = _allowedScopes
-
-    suspend fun changePassword(newPassword: String) {
-        password = protectionService.createPassword(newPassword)
-        dao = dao.copy(password = password.serialize())
-        accountsService.updateAccount(dao)
-    }
-
-    suspend fun updateScopes() {
-        dao = dao.copy(allowedScopes = allowedScopes)
-        accountsService.updateAccount(dao)
-    }
-
-    suspend fun allowScope(scope: String) {
-        _allowedScopes.add(scope)
-        updateScopes()
-    }
-
-    suspend fun removeScope(scope: String) {
-        _allowedScopes.remove(scope)
-        updateScopes()
-    }
-
-    suspend fun clearScopes() {
-        _allowedScopes.clear()
-        updateScopes()
-    }
+    suspend fun getScopes(): Set<String>
+    suspend fun allowScope(scope: String)
+    suspend fun removeScope(scope: String)
+    suspend fun clearScopes()
 }

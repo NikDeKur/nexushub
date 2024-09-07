@@ -8,8 +8,8 @@
 
 package dev.nikdekur.nexushub
 
-import dev.nikdekur.ndkore.service.RuntimeServicesManager
 import dev.nikdekur.ndkore.service.ServicesManager
+import dev.nikdekur.ndkore.service.manager.RuntimeServicesManager
 import org.slf4j.LoggerFactory
 import kotlin.properties.Delegates
 import kotlin.time.Duration

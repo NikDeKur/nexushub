@@ -85,8 +85,8 @@ class RuntimeStorageTable<T : Any> : StorageTable<T> {
 
     private fun applyFilter(item: T, filter: Filter): Boolean {
         val value = item::class.members
-            .first { it.name == filter.key }
-            .call(item)
+            .firstOrNull { it.name == filter.key }
+            ?.call(item)
 
         @Suppress("UNCHECKED_CAST")
         return when (filter.operator) {
@@ -99,11 +99,21 @@ class RuntimeStorageTable<T : Any> : StorageTable<T> {
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
+    fun findField(any: Any, field: String): Comparable<Any>? {
+        return (if (any is Map<*, *>)
+            any[field]
+        else
+            any::class.members.firstOrNull { it.name == field }?.call(any)
+                ) as? Comparable<Any>
+    }
+
     private fun applySort(sequence: Sequence<T>, sort: Sort): Sequence<T> {
-        @Suppress("UNCHECKED_CAST")
         val comparator = Comparator<T> { a, b ->
-            val valueA = a::class.members.first { it.name == sort.field }.call(a) as Comparable<Any>
-            val valueB = b::class.members.first { it.name == sort.field }.call(b) as Comparable<Any>
+            val field = sort.field
+            val valueA = findField(a, field)
+            val valueB = findField(b, field)
+            if (valueA == null || valueB == null) return@Comparator 0
             when (sort.order) {
                 Order.ASCENDING -> valueA.compareTo(valueB)
                 Order.DESCENDING -> valueB.compareTo(valueA)

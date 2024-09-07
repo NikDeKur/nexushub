@@ -15,12 +15,11 @@ import kotlinx.coroutines.flow.Flow
 
 interface StorageTable<T : Any> {
 
-    suspend fun count(vararg filters: Filter): Long
 
     suspend fun insertOne(data: T)
     suspend fun insertMany(data: List<T>)
 
-    suspend fun replaceOne(data: T, vararg filters: Filter)
+    suspend fun count(vararg filters: Filter): Long
 
     fun find(
         filters: List<Filter>? = null,
@@ -28,6 +27,8 @@ interface StorageTable<T : Any> {
         limit: Int? = null,
         skip: Int? = null
     ): Flow<T>
+
+    suspend fun replaceOne(data: T, vararg filters: Filter)
 
     suspend fun deleteOne(vararg filters: Filter)
     suspend fun deleteMany(vararg filters: Filter)

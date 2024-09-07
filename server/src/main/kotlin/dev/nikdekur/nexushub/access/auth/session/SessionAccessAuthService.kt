@@ -6,60 +6,59 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.root.auth.session
+package dev.nikdekur.nexushub.access.auth.session
 
 import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
+import dev.nikdekur.nexushub.access.auth.AccessAuthService
+import dev.nikdekur.nexushub.access.auth.Headers
 import dev.nikdekur.nexushub.account.AccountsService
-import dev.nikdekur.nexushub.network.auth.RootToken
-import dev.nikdekur.nexushub.root.auth.AccessAuthService
-import dev.nikdekur.nexushub.root.auth.AccessAuthService.LoginResult
-import dev.nikdekur.nexushub.root.auth.AccessAuthService.LogoutResult
-import dev.nikdekur.nexushub.root.auth.Headers
+import dev.nikdekur.nexushub.ktor.auth.RootToken
+import dev.nikdekur.nexushub.service.NexusHubService
 import java.util.UUID
 
 class SessionAccessAuthService(
     override val app: NexusHubServer
-) : AccessAuthService {
+) : NexusHubService(), AccessAuthService {
 
     val accountsService: AccountsService by inject()
 
     var rootToken: RootToken? = null
 
-    override suspend fun login(login: String, password: String): LoginResult {
+    override suspend fun login(login: String, password: String): AccessAuthService.LoginResult {
         if (login != "root") {
-            return LoginResult.AccountNotFound
+            return AccessAuthService.LoginResult.AccountNotFound
         }
 
         val root = accountsService.getAccount("root")
         if (root == null) {
-            return LoginResult.AccountNotFound
+            return AccessAuthService.LoginResult.AccountNotFound
         }
 
-        val match = accountsService.matchPassword(root.password, password)
+        val match = root.password.isEqual(password)
         if (!match) {
-            return LoginResult.WrongCredentials
+            return AccessAuthService.LoginResult.WrongCredentials
         }
 
 
         val token = UUID.randomUUID().toString()
         val validBy = 10 * 60 * 1000 + System.currentTimeMillis() // 10 minutes
 
-        return LoginResult.Success(
+        return AccessAuthService.LoginResult.Success(
             RootToken(token, validBy)
                 .also { rootToken = it }
                 .toMap()
         )
     }
 
-    override suspend fun logout(headers: Headers): LogoutResult {
+    override suspend fun logout(headers: Headers): AccessAuthService.LogoutResult {
         val auth = getAuthState(headers)
-        if (auth != AccessAuthService.AuthState.AUTHENTICATED) {
+        if (auth == AccessAuthService.AuthState.AUTHENTICATED) {
 //            call.respondText(
 //                text = "Not authenticated",
 //                status = HttpStatusCode.BadRequest
 //            )
-            return LogoutResult.NotAuthenticated
+            return AccessAuthService.LogoutResult.NotAuthenticated
         }
 
         rootToken = null
@@ -68,7 +67,7 @@ class SessionAccessAuthService(
 //            text = "Logged out",
 //            status = HttpStatusCode.OK
 //        )
-        return LogoutResult.Success
+        return AccessAuthService.LogoutResult.Success
     }
 
     override fun getAuthState(headers: Headers): AccessAuthService.AuthState {

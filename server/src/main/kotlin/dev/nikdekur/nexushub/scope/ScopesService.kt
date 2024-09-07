@@ -8,14 +8,14 @@
 
 package dev.nikdekur.nexushub.scope
 
-import dev.nikdekur.nexushub.service.NexusHubService
-import dev.nikdekur.nexushub.storage.scope.ScopeDAO
+interface ScopesService {
 
-interface ScopesService : NexusHubService {
-
-    suspend fun reloadScopes()
-
-    suspend fun createScope(scopeId: String): Scope
+    /**
+     * Get a collection of all existing scopes
+     *
+     * @return collection of all existing scopes
+     */
+    suspend fun getScopes(): Collection<Scope>
 
     /**
      * Get scope by name or create it if it doesn't exist
@@ -24,9 +24,4 @@ interface ScopesService : NexusHubService {
      * @return scope
      */
     suspend fun getScope(scopeId: String): Scope
-
-    suspend fun findScopeData(scopeId: String): ScopeDAO?
-    suspend fun createScopeData(data: ScopeDAO)
-    suspend fun updateScopeData(data: ScopeDAO)
-    suspend fun deleteScopeData(scopeId: String)
 }

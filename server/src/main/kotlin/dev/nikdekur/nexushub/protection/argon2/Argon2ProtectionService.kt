@@ -12,13 +12,18 @@ import dev.nikdekur.ndkore.ext.delay
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
+import dev.nikdekur.nexushub.service.NexusHubService
+import kotlinx.coroutines.Dispatchers
 
 class Argon2ProtectionService(
     override val app: NexusHubServer
-) : ProtectionService {
+) : NexusHubService(), ProtectionService {
 
-    override fun createPassword(string: String): Password {
-        return Argon2Encryptor.encryptNew(string)
+    val encryptingDispatcher = Dispatchers.Default
+
+    override fun createPassword(string: String): Argon2Password {
+        val data = Argon2Encryptor.encryptNew(string)
+        return Argon2Password(encryptingDispatcher, data.first, data.second)
     }
 
     override fun deserializePassword(string: String): Password {
@@ -26,7 +31,7 @@ class Argon2ProtectionService(
         val bytes = parts[0].fromHEX()
         val saltByte = parts[1].fromHEX()
         val salt = Salt(saltByte)
-        return Argon2Password(bytes, salt)
+        return Argon2Password(encryptingDispatcher, bytes, salt)
     }
 
     override suspend fun imitateEncryption() {

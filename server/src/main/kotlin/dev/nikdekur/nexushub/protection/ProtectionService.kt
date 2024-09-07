@@ -8,8 +8,6 @@
 
 package dev.nikdekur.nexushub.protection
 
-import dev.nikdekur.nexushub.service.NexusHubService
-
 /**
  * # Protection Service
  *
@@ -17,7 +15,7 @@ import dev.nikdekur.nexushub.service.NexusHubService
  * Different implementations of this service can provide different levels of security
  * or either no security at all.
  */
-interface ProtectionService : NexusHubService {
+interface ProtectionService {
 
     /**
      * Creates a password from a string.

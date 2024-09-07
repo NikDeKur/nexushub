@@ -6,31 +6,22 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.storage.scope
+package dev.nikdekur.nexushub.scope.table
 
-import dev.nikdekur.ndkore.`interface`.Snowflake
 import dev.nikdekur.nexushub.util.NexusData
 
-interface ScopeTable : Snowflake<String> {
-
-    val data: ScopeDAO
+interface ScopeData {
 
     /**
-     * Find the data for the given holder id
+     * Find the data of the given holder
      *
      * @param holderId holder id
-     * @return the data for the given holder id, or null if not found
+     * @return the data of the given holder, or null if the data doesn't exist
      */
     suspend fun findOrNull(holderId: String): NexusData?
 
     /**
-     * Save the data for the given holder id
-     *
-     * Do nothing if the existing data are same as the new data
-     *
-     * If old data exists and the new data is not empty, update the data
-     *
-     * If the new data is empty and old data exists, delete the data
+     * Save the data of the given holder
      *
      * @param holderId holder id
      * @param data data to save
@@ -38,21 +29,17 @@ interface ScopeTable : Snowflake<String> {
     suspend fun save(holderId: String, data: NexusData)
 
     /**
-     * Get the leaderboard for the given field, starting from the given position and limited by the given limit
+     * Get the leaderboard for the given path
      *
-     * The leaderboard is sorted in descending order
-     *
-     * @param field field to get the leaderboard for
-     * @param startFrom position to start from
-     * @param limit limit of the leaderboard
-     * @return the leaderboard for the given field
+     * @param field path to get the leaderboard for
+     * @param startFrom start from the given position
+     * @param limit limit the number of entries to get
+     * @return the leaderboard for the given path
      */
     suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): List<NexusData>
 
     /**
      * Get the top position in the leaderboard for the given field of the given holder
-     *
-     * If no field is found for the holder or field is not a double, null is returned
      *
      * The top position is started from 0, so the top position is 0, the second position is 1, and so on
      *

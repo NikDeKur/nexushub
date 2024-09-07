@@ -6,12 +6,6 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.storage.scope
+package dev.nikdekur.nexushub.account
 
-interface ScopesTable {
-
-    suspend fun createScope(dao: ScopeDAO)
-    suspend fun findScope(scope: String): ScopeDAO?
-    suspend fun updateScope(scopeDAO: ScopeDAO)
-    suspend fun deleteScope(scope: String)
-}
+class AccountAlreadyExistsException(login: String) : RuntimeException("Account with login '$login' already exists.")

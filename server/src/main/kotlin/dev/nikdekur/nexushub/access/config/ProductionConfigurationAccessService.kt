@@ -16,13 +16,19 @@ import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.AccountSco
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.PasswordChangeResult
 import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.account.AccountsService
+import dev.nikdekur.nexushub.protection.ProtectionService
+import dev.nikdekur.nexushub.service.NexusHubService
 
 class ProductionConfigurationAccessService(
     override val app: NexusHubServer
-) : ConfigurationAccessService {
+) : NexusHubService(), ConfigurationAccessService {
 
+    val protectionService: ProtectionService by inject()
     val accountsService: AccountsService by inject()
 
+    override suspend fun reload() {
+        app.servicesManager.reload()
+    }
 
     override suspend fun listAccounts(): Collection<Account> {
         return accountsService.getAccounts()
@@ -58,7 +64,9 @@ class ProductionConfigurationAccessService(
         if (account == null)
             return PasswordChangeResult.AccountNotFound
 
-        account.changePassword(newPassword)
+        val newPasswordEncrypted = protectionService.createPassword(newPassword)
+        account.changePassword(newPasswordEncrypted)
+
         return PasswordChangeResult.Success
     }
 
@@ -67,7 +75,7 @@ class ProductionConfigurationAccessService(
         if (account == null)
             return AccountScopesListResult.AccountNotFound
 
-        return AccountScopesListResult.Success(account.allowedScopes)
+        return AccountScopesListResult.Success(account.getScopes())
     }
 
     override suspend fun changeAccountScopes(

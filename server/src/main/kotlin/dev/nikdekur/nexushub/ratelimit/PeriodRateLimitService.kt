@@ -14,6 +14,7 @@ import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.get
 import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.talker.Talker
+import dev.nikdekur.nexushub.service.NexusHubService
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.properties.Delegates
@@ -21,7 +22,7 @@ import kotlin.time.Duration
 
 data class PeriodRateLimitService(
     override val app: NexusHubServer
-) : RateLimitService {
+) : NexusHubService(), RateLimitService {
 
     val datasetService: DataSetService by inject()
 

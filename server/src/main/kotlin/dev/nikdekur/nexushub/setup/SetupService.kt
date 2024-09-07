@@ -8,6 +8,4 @@
 
 package dev.nikdekur.nexushub.setup
 
-import dev.nikdekur.nexushub.service.NexusHubService
-
-interface SetupService : NexusHubService
+interface SetupService

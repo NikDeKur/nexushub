@@ -9,12 +9,11 @@
 package dev.nikdekur.nexushub.ratelimit
 
 import dev.nikdekur.nexushub.network.talker.Talker
-import dev.nikdekur.nexushub.service.NexusHubService
 
 /**
  * A service that provides rate limiting functionality.
  */
-interface RateLimitService : NexusHubService {
+interface RateLimitService {
 
     /**
      * Acquire a rate limit token for the given talker.

@@ -9,15 +9,11 @@
 package dev.nikdekur.nexushub.node
 
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
-import dev.nikdekur.ndkore.scheduler.runTaskTimer
 import dev.nikdekur.ndkore.service.Dependencies
-import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
-import dev.nikdekur.nexushub.access.PingDataSet
 import dev.nikdekur.nexushub.account.Account
-import dev.nikdekur.nexushub.dataset.DataSetService
-import dev.nikdekur.nexushub.dataset.get
 import dev.nikdekur.nexushub.network.talker.Talker
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.util.CloseCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -25,51 +21,36 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.properties.Delegates
-import kotlin.time.Duration
 
 class RuntimeNodesService(
     override val app: NexusHubServer
-) : NodesService {
+) : NexusHubService(), NodesService {
 
     // Specify it as last, to be first for unloading
     // We have to close all nodes before unloading other services
     override val dependencies = Dependencies.last()
 
-    val datasetService: DataSetService by inject()
 
-    lateinit var scope: CoroutineScheduler
+    override lateinit var syncScope: CoroutineScheduler
 
     // Where key is either the node id or the talker address
     val nodesMap = ConcurrentHashMap<String, Node>()
 
-    override var pingInterval: Duration by Delegates.notNull()
 
 
     override val nodes: Collection<Node>
         get() = nodesMap.values
 
     override fun onEnable() {
-        scope = CoroutineScheduler.fromSupervisor(Dispatchers.Default)
+        syncScope = CoroutineScheduler.fromSupervisor(Dispatchers.IO)
 
-
-        val config = datasetService.get<PingDataSet>("ping") ?: PingDataSet()
-        pingInterval = config.interval
-        val deadInterval = pingInterval + config.extraInterval
-
-        scope.runTaskTimer(deadInterval) {
-            nodesMap.values.forEach { node ->
-                if (node.isAlive(deadInterval)) return@forEach
-                node.close(CloseCode.PING_FAILED, "Ping failed")
-            }
-        }
     }
 
     override fun onDisable() {
         runBlocking {
             closeAllNodes(CloseCode.SHUTDOWN, "Server is shutting down")
         }
-        scope.cancel()
+        syncScope.cancel()
     }
 
 
@@ -99,7 +80,7 @@ class RuntimeNodesService(
 
     override suspend fun closeAllNodes(code: CloseCode, reason: String) {
         nodes.map {
-            scope.async {
+            syncScope.async {
                 it.close(code, reason)
             }
         }.awaitAll()

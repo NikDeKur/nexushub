@@ -9,15 +9,16 @@
 package dev.nikdekur.nexushub.access.config
 
 import dev.nikdekur.nexushub.account.Account
-import dev.nikdekur.nexushub.service.NexusHubService
+
 
 /**
  * # Configuration Access Service
  *
  * Service responsible for accessing and managing the configuration of the server.
  */
-interface ConfigurationAccessService : NexusHubService {
+interface ConfigurationAccessService {
 
+    suspend fun reload()
 
     suspend fun listAccounts(): Collection<Account>
 

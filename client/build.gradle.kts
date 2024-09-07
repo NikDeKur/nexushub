@@ -45,7 +45,6 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.slf4j.api)
     testImplementation(libs.slf4j.simple)
-    testImplementation(libs.koin)
 }
 
 tasks.test {

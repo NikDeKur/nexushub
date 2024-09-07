@@ -13,6 +13,8 @@ import dev.nikdekur.nexushub.NexusHub
 import dev.nikdekur.nexushub.data.Leaderboard
 import dev.nikdekur.nexushub.data.LeaderboardEntry
 import dev.nikdekur.nexushub.event.NetworkEvent
+import dev.nikdekur.nexushub.packet.ErrorCode
+import dev.nikdekur.nexushub.packet.ErrorLevel
 import dev.nikdekur.nexushub.packet.PacketBatchSaveData
 import dev.nikdekur.nexushub.packet.PacketEndSession
 import dev.nikdekur.nexushub.packet.PacketError
@@ -207,8 +209,8 @@ abstract class AbstractNexusService<H, S : ScopeData<S>>(
         if (session == null) {
             event.context.respond<String>(
                 PacketError(
-                    PacketError.Level.ERROR,
-                    PacketError.Code.SESSION_NOT_FOUND,
+                    ErrorLevel.ERROR,
+                    ErrorCode.SESSION_NOT_FOUND,
                     "No session found"
                 )
             )

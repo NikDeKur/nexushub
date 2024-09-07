@@ -8,13 +8,13 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-package dev.nikdekur.nexushub.network.auth
+package dev.nikdekur.nexushub.ktor.auth
 
 import dev.nikdekur.ndkore.annotation.DelicateAPI
 import dev.nikdekur.ndkore.service.getService
 import dev.nikdekur.nexushub.KtorNexusHubServer
-import dev.nikdekur.nexushub.network.HeadersMap
-import dev.nikdekur.nexushub.root.auth.AccessAuthService
+import dev.nikdekur.nexushub.access.auth.AccessAuthService
+import dev.nikdekur.nexushub.ktor.HeadersMap
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.plugins.origin

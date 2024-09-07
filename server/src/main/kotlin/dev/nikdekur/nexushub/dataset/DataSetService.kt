@@ -8,7 +8,5 @@
 
 package dev.nikdekur.nexushub.dataset
 
-import dev.nikdekur.nexushub.service.NexusHubService
-
-interface DataSetService : NexusHubService, DataSetSection
+interface DataSetService : DataSetSection
 

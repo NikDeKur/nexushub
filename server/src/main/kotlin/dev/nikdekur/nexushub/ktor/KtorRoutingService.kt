@@ -6,7 +6,7 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.network
+package dev.nikdekur.nexushub.ktor
 
 import dev.nikdekur.ndkore.ext.warn
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
@@ -14,12 +14,16 @@ import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.access.AccessService
 import dev.nikdekur.nexushub.access.AccessService.ReceiveResult
+import dev.nikdekur.nexushub.access.auth.AccessAuthService
+import dev.nikdekur.nexushub.access.auth.AccessAuthService.LoginResult
+import dev.nikdekur.nexushub.access.auth.AccessAuthService.LogoutResult
+import dev.nikdekur.nexushub.access.auth.Headers
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.AccountCreationResult
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.AccountDeletionResult
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.Action
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService.PasswordChangeResult
-import dev.nikdekur.nexushub.ktor.KtorPacketControllerTalker
+import dev.nikdekur.nexushub.ktor.auth.authenticate
 import dev.nikdekur.nexushub.modal.Account
 import dev.nikdekur.nexushub.modal.`in`.AccountCreateRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountDeleteRequest
@@ -28,13 +32,9 @@ import dev.nikdekur.nexushub.modal.`in`.AccountScopesListRequest
 import dev.nikdekur.nexushub.modal.`in`.AccountScopesUpdateRequest
 import dev.nikdekur.nexushub.modal.`in`.AuthRequest
 import dev.nikdekur.nexushub.modal.out.AccountsListResponse
-import dev.nikdekur.nexushub.network.auth.authenticate
+import dev.nikdekur.nexushub.network.Address
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.network.timeout.SchedulerTimeoutService
-import dev.nikdekur.nexushub.root.auth.AccessAuthService
-import dev.nikdekur.nexushub.root.auth.AccessAuthService.LoginResult
-import dev.nikdekur.nexushub.root.auth.AccessAuthService.LogoutResult
-import dev.nikdekur.nexushub.root.auth.Headers
 import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.http.HttpStatusCode
@@ -56,16 +56,13 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.html.body
 import kotlinx.html.p
-import org.slf4j.LoggerFactory
 import java.time.Duration
 import io.ktor.http.Headers as KtorHeaders
 
 class Routing(
     override val app: NexusHubServer,
     val application: Application
-) : NexusHubService {
-
-    val logger = LoggerFactory.getLogger(javaClass)
+) : NexusHubService() {
 
     val accessAuthService: AccessAuthService by inject()
     val accessService: AccessService by inject()
@@ -243,7 +240,7 @@ class Routing(
 
         val response = AccountsListResponse(
             accounts.map {
-                Account(it.login, it.allowedScopes)
+                Account(it.login, it.getScopes())
             }
         )
         logger.info("[${call.address}] Responding with accounts list: $response")

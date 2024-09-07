@@ -18,38 +18,30 @@ import dev.nikdekur.ndkore.map.remove
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.node.Node
 import dev.nikdekur.nexushub.scope.Scope
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancel
+import dev.nikdekur.nexushub.service.NexusHubService
 import java.util.concurrent.ConcurrentHashMap
 
 class RuntimeSessionsService(
     override val app: NexusHubServer
-) : SessionsService {
-
-    lateinit var syncingScope: CoroutineScope
-
-    override fun onEnable() {
-        syncingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    }
+) : NexusHubService(), SessionsService {
 
     override fun onDisable() {
-        syncingScope.cancel()
         sessions.clear()
         nodeToSessions.clear()
         scopeToNodes.clear()
     }
 
-    //                                    scope   holder
+    //                            scope   holder
     val sessions: MutableMultiMap<String, String, Session> = ConcurrentHashMap()
     val nodeToSessions: MutableSetsMap<String, Session> = ConcurrentHashMap()
     val scopeToNodes: MutableSetsMap<String, Node> = ConcurrentHashMap()
 
     override fun getExistingSession(scopeId: String, holderId: String): Session? {
         return sessions[scopeId, holderId]
+    }
+
+    override fun getNodes(scope: Scope): Iterable<Node> {
+        return scopeToNodes[scope.id] ?: emptySet()
     }
 
     override fun startSession(node: Node, scope: Scope, holderId: String) {
@@ -59,12 +51,12 @@ class RuntimeSessionsService(
         scopeToNodes.add(scope.id, node, ::ConcurrentHashSet)
     }
 
+
     override fun stopSession(scopeId: String, holderId: String) {
         val session = sessions.remove(scopeId, holderId)
         if (session != null) {
             val node = session.node
             nodeToSessions.remove(node.id, session)
-            scopeToNodes.remove(scopeId, node)
         }
     }
 
@@ -73,22 +65,10 @@ class RuntimeSessionsService(
         val nodeSessions = nodeToSessions.remove(node.id)
         nodeSessions?.forEach {
             sessions.remove(it.scope.id, it.holderId)
-            scopeToNodes.remove(it.scope.id, node)
         }
     }
 
     override fun hasAnySessions(node: Node): Boolean {
         return nodeToSessions.contains(node.id)
-    }
-
-
-    override suspend fun requestSync(scope: Scope) {
-        val nodes = scopeToNodes[scope.id] ?: return
-
-        nodes.map {
-            syncingScope.async {
-                it.requestScopeSync(scope)
-            }
-        }.awaitAll()
     }
 }

@@ -8,7 +8,6 @@
 
 package dev.nikdekur.nexushub.serial
 
-import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.util.NexusData
 
 /**
@@ -17,7 +16,7 @@ import dev.nikdekur.nexushub.util.NexusData
  * Service for serializing and deserializing NexusData objects.
  *
  */
-interface SerialService : NexusHubService {
+interface SerialService {
 
     /**
      * Serializes the given NexusData to a string.

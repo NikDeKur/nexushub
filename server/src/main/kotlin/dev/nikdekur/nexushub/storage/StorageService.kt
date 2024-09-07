@@ -8,13 +8,17 @@
 
 package dev.nikdekur.nexushub.storage
 
-import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 
-interface StorageService : NexusHubService {
+interface StorageService {
 
     val scope: CoroutineScope
+
     fun getAllTables(): Flow<String>
     fun <T : Any> getTable(name: String, clazz: Class<T>): StorageTable<T>
+}
+
+inline fun <reified T : Any> StorageService.getTable(name: String): StorageTable<T> {
+    return getTable(name, T::class.java)
 }

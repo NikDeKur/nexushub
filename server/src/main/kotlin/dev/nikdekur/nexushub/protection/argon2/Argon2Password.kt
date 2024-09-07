@@ -11,17 +11,21 @@
 package dev.nikdekur.nexushub.protection.argon2
 
 import dev.nikdekur.nexushub.protection.Password
+import kotlin.coroutines.CoroutineContext
 
 
 data class Argon2Password(
+    val dispatcher: CoroutineContext,
     val byte: ByteArray,
     val salt: Salt,
 ) : Password {
 
-    val hex = byte.toHEX()
+    val hex
+        get() = byte.toHEX()
 
     override fun isEqual(password: String): Boolean {
-        val encrypted = Argon2Encryptor.encrypt(password, salt)
+        val encryptedData = Argon2Encryptor.encrypt(password, salt)
+        val encrypted = Argon2Password(dispatcher, encryptedData, salt)
         return encrypted == this
     }
 
@@ -37,11 +41,11 @@ data class Argon2Password(
 
         other as Argon2Password
 
-        return byte.contentEquals(other.byte) && salt == other.salt
+        return byte.contentEquals(other.byte) && salt.byte.contentEquals(other.salt.byte)
     }
 
     override fun hashCode(): Int {
-        return byte.contentHashCode()
+        return byte.contentHashCode() + salt.hashCode()
     }
 
     override fun toString(): String {

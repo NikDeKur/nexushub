@@ -9,6 +9,7 @@
 package dev.nikdekur.nexushub.storage.runtime
 
 import dev.nikdekur.nexushub.NexusHubServer
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.StorageTable
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class RuntimeStorageService(
     override val app: NexusHubServer
-) : StorageService {
+) : NexusHubService(), StorageService {
 
     override lateinit var scope: CoroutineScope
 

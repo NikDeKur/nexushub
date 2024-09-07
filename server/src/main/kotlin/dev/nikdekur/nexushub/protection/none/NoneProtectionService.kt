@@ -11,10 +11,11 @@ package dev.nikdekur.nexushub.protection.none
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.protection.Password
 import dev.nikdekur.nexushub.protection.ProtectionService
+import dev.nikdekur.nexushub.service.NexusHubService
 
 class NoneProtectionService(
     override val app: NexusHubServer
-) : ProtectionService {
+) : NexusHubService(), ProtectionService {
     override fun createPassword(string: String): Password {
         return NoneProtectionPassword(string)
     }

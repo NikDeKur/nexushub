@@ -34,11 +34,12 @@ object Argon2Encryptor {
         return AVERAGE_HASH_TIME_MS + Random.nextInt(-AVERAGE_HASH_TIME_RANGE, AVERAGE_HASH_TIME_RANGE)
     }
 
-    fun encryptNew(password: String): Argon2Password {
-        return encrypt(password, newSalt())
+    fun encryptNew(password: String): Pair<ByteArray, Salt> {
+        val salt = newSalt()
+        return encrypt(password, salt) to salt
     }
 
-    fun encrypt(password: String, salt: Salt): Argon2Password {
+    fun encrypt(password: String, salt: Salt): ByteArray {
         val builder = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
             .withVersion(Argon2Parameters.ARGON2_VERSION_13) // 19
             .withIterations(OPERATIONS)
@@ -52,7 +53,7 @@ object Argon2Encryptor {
 
         val result = ByteArray(CASH_LENGTH)
         argon2.generateBytes(password.encodeToByteArray(), result, 0, result.size)
-        return Argon2Password(result, salt)
+        return result
     }
 
 

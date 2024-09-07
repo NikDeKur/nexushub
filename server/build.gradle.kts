@@ -50,13 +50,11 @@ dependencies {
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)
     implementation(libs.guava)
-    implementation(libs.koin)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.serialization.barray)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.slf4j.api)
-    testImplementation(libs.koin)
+    testImplementation(libs.logback)
 }
 
 val javaVersion = JavaVersion.VERSION_11

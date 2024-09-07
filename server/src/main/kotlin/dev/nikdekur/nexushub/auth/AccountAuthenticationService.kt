@@ -15,30 +15,27 @@ import dev.nikdekur.nexushub.auth.AuthenticationService.AuthResult
 import dev.nikdekur.nexushub.network.talker.Talker
 import dev.nikdekur.nexushub.node.NodesService
 import dev.nikdekur.nexushub.node.isNodeExists
-import dev.nikdekur.nexushub.packet.PacketAuth
-import org.slf4j.LoggerFactory
+import dev.nikdekur.nexushub.service.NexusHubService
 
 class AccountAuthenticationService(
     override val app: NexusHubServer
-) : AuthenticationService {
-
-    val logger = LoggerFactory.getLogger(javaClass)
+) : NexusHubService(), AuthenticationService {
 
     val nodesService: NodesService by inject()
     val accountsService: AccountsService by inject()
 
-    override suspend fun authenticate(talker: Talker, packet: PacketAuth): AuthResult {
-        val account = accountsService.getAccount(packet.login)
+    override suspend fun authenticate(talker: Talker, credentials: Credentials): AuthResult {
+        val account = accountsService.getAccount(credentials.login)
         if (account == null)
             return AuthResult.AccountNotFound
 
 
-        val isCorrect = accountsService.matchPassword(account.password, packet.password)
+        val isCorrect = account.password.isEqual(credentials.password)
         if (!isCorrect)
             return AuthResult.WrongCredentials
 
 
-        val nodeStr = packet.node
+        val nodeStr = credentials.node
         if (!isValidNodeName(nodeStr))
             return AuthResult.NodeNameInvalid
 

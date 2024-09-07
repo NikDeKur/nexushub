@@ -10,6 +10,8 @@ package dev.nikdekur.nexushub
 
 import dev.nikdekur.nexushub.access.AccessService
 import dev.nikdekur.nexushub.access.ProductionAccessService
+import dev.nikdekur.nexushub.access.auth.AccessAuthService
+import dev.nikdekur.nexushub.access.auth.session.SessionAccessAuthService
 import dev.nikdekur.nexushub.access.config.ConfigurationAccessService
 import dev.nikdekur.nexushub.access.config.ProductionConfigurationAccessService
 import dev.nikdekur.nexushub.account.AccountsService
@@ -23,8 +25,6 @@ import dev.nikdekur.nexushub.protection.ProtectionService
 import dev.nikdekur.nexushub.protection.argon2.Argon2ProtectionService
 import dev.nikdekur.nexushub.ratelimit.PeriodRateLimitService
 import dev.nikdekur.nexushub.ratelimit.RateLimitService
-import dev.nikdekur.nexushub.root.auth.AccessAuthService
-import dev.nikdekur.nexushub.root.auth.session.SessionAccessAuthService
 import dev.nikdekur.nexushub.scope.ScopesService
 import dev.nikdekur.nexushub.scope.StorageScopesService
 import dev.nikdekur.nexushub.serial.SerialService

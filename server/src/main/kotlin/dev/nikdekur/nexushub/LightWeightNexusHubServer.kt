@@ -17,13 +17,31 @@ import kotlin.time.Duration
 
 typealias ServiceConstructor = (NexusHubServer) -> NexusHubService
 
+
+class LightWeightNexusHubServer(
+    val services: List<Pair<ServiceConstructor, KClass<out Any>>>,
+    override val environment: Environment,
+    val onStop: (Duration, Duration) -> Unit
+) : AbstractNexusHubServer() {
+
+    override fun registerServices() {
+        services.forEach { (service, serviceInterface) ->
+            servicesManager.registerService(service(this), serviceInterface)
+        }
+    }
+
+    override fun stop(gracePeriod: Duration, timeout: Duration) {
+        onStop(gracePeriod, timeout)
+    }
+}
+
 class LightWeightNexusHubServerBuilder {
     var start: Boolean = true
-    val services = LinkedList<Pair<ServiceConstructor, KClass<out NexusHubService>>>()
+    val services = LinkedList<Pair<ServiceConstructor, KClass<out Any>>>()
     var environment: Environment = Environment.Empty
     var onStop: (Duration, Duration) -> Unit = { _, _ -> }
 
-    fun service(service: ServiceConstructor, serviceInterface: KClass<out NexusHubService>) {
+    fun service(service: ServiceConstructor, serviceInterface: KClass<out Any>) {
         services.add(service to serviceInterface)
     }
 
@@ -42,20 +60,7 @@ class LightWeightNexusHubServerBuilder {
     }
 
     fun build(): AbstractNexusHubServer {
-        val server = object : AbstractNexusHubServer() {
-            override fun registerServices() {
-                services.forEach { (service, serviceInterface) ->
-                    servicesManager.registerService(service(this), serviceInterface)
-                }
-            }
-
-            override val environment = this@LightWeightNexusHubServerBuilder.environment
-
-            override fun stop(gracePeriod: Duration, timeout: Duration) {
-                onStop(gracePeriod, timeout)
-            }
-        }
-
+        val server = LightWeightNexusHubServer(services, environment, onStop)
         if (start) server.start()
 
         return server

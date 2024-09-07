@@ -19,6 +19,7 @@ import dev.nikdekur.ndkore.service.inject
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.get
+import dev.nikdekur.nexushub.service.NexusHubService
 import dev.nikdekur.nexushub.storage.StorageService
 import dev.nikdekur.nexushub.storage.StorageTable
 import kotlinx.coroutines.CoroutineScope
@@ -31,14 +32,11 @@ import org.bson.Document
 import org.bson.codecs.configuration.CodecRegistries.fromProviders
 import org.bson.codecs.configuration.CodecRegistries.fromRegistries
 import org.bson.codecs.pojo.PojoCodecProvider
-import org.slf4j.LoggerFactory
 
 
 class MongoStorageService(
     override val app: NexusHubServer
-) : StorageService {
-
-    val logger = LoggerFactory.getLogger(javaClass)
+) : NexusHubService(), StorageService {
 
     val dataSetService: DataSetService by inject()
 
@@ -100,8 +98,4 @@ class MongoStorageService(
     override fun <T : Any> getTable(name: String, clazz: Class<T>): StorageTable<T> {
         return MongoStorageTable(database.getCollection(name, clazz))
     }
-}
-
-inline fun <reified T : Any> StorageService.getTable(name: String): StorageTable<T> {
-    return getTable(name, T::class.java)
 }

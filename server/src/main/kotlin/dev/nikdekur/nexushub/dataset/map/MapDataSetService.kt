@@ -13,6 +13,7 @@ package dev.nikdekur.nexushub.dataset.map
 import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.LenientDurationSerializer
+import dev.nikdekur.nexushub.service.NexusHubService
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -27,7 +28,7 @@ import kotlin.time.Duration
 class MapDataSetService(
     override val app: NexusHubServer,
     val map: Map<String, Any>
-) : DataSetService {
+) : NexusHubService(), DataSetService {
 
     lateinit var json: Json
     lateinit var root: MapDataSetSection

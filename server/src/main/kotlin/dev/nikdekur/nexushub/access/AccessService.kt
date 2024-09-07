@@ -9,7 +9,6 @@
 package dev.nikdekur.nexushub.access
 
 import dev.nikdekur.nexushub.network.talker.Talker
-import dev.nikdekur.nexushub.service.NexusHubService
 
 /**
  * # Access Service
@@ -17,7 +16,7 @@ import dev.nikdekur.nexushub.service.NexusHubService
  * The access service is responsible for handling incoming data from clients and managing their access to the server.
  * This includes rate limiting, authentication, and handling of incoming data and further business logic and responses.
  */
-interface AccessService : NexusHubService {
+interface AccessService {
 
     /**
      * Receive data from a client talker.

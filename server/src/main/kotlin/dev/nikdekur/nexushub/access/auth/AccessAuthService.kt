@@ -6,13 +6,11 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.root.auth
-
-import dev.nikdekur.nexushub.service.NexusHubService
+package dev.nikdekur.nexushub.access.auth
 
 typealias Headers = Map<String, List<String>>
 
-interface AccessAuthService : NexusHubService {
+interface AccessAuthService {
 
     /**
      * Logs in the user based on the headers.

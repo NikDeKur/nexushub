@@ -16,6 +16,8 @@ import dev.nikdekur.nexushub.NexusHubServer
 import dev.nikdekur.nexushub.account.Account
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.talker.Talker
+import dev.nikdekur.nexushub.packet.ErrorCode
+import dev.nikdekur.nexushub.packet.ErrorLevel
 import dev.nikdekur.nexushub.packet.Packet
 import dev.nikdekur.nexushub.packet.PacketBatchSaveData
 import dev.nikdekur.nexushub.packet.PacketError
@@ -85,8 +87,8 @@ class DefaultNode(
         }
     }
 
-    inline fun hasScopeAccess(scopeId: String): Boolean {
-        return account.allowedScopes.contains(scopeId)
+    suspend inline fun hasScopeAccess(scopeId: String): Boolean {
+        return account.getScopes().contains(scopeId)
     }
 
 
@@ -95,8 +97,8 @@ class DefaultNode(
         if (!has) {
             this.respond<Unit>(
                 PacketError(
-                    PacketError.Level.ERROR,
-                    PacketError.Code.SCOPE_IS_NOT_ALLOWED,
+                    ErrorLevel.ERROR,
+                    ErrorCode.SCOPE_IS_NOT_ALLOWED,
                     "Scope '${scopeId}' is not allowed for your account"
                 )
             )
@@ -124,8 +126,8 @@ class DefaultNode(
                 logger.info("Session already exists for $holderId in $scopeId. Denying request.")
                 node.send<Unit>(
                     PacketError(
-                        PacketError.Level.ERROR,
-                        PacketError.Code.SESSION_ALREADY_EXISTS,
+                        ErrorLevel.ERROR,
+                        ErrorCode.SESSION_ALREADY_EXISTS,
                         "Another session already exists for this holder. Only one session is allowed."
                     )
                 )
@@ -158,8 +160,8 @@ class DefaultNode(
         if (dataStr.isBlankOrEmpty()) {
             context.respond<Unit>(
                 PacketError(
-                    PacketError.Level.ERROR,
-                    PacketError.Code.ERROR_IN_DATA,
+                    ErrorLevel.ERROR,
+                    ErrorCode.ERROR_IN_DATA,
                     "Data is empty"
                 )
             )
@@ -171,8 +173,8 @@ class DefaultNode(
         if (session != null && session.node != this) {
             context.respond<Unit>(
                 PacketError(
-                    PacketError.Level.ERROR,
-                    PacketError.Code.SESSION_ALREADY_EXISTS,
+                    ErrorLevel.ERROR,
+                    ErrorCode.SESSION_ALREADY_EXISTS,
                     "Another session already exists for this holder. Only one session is allowed."
                 )
             )
@@ -184,8 +186,8 @@ class DefaultNode(
         } catch (_: Exception) {
             context.respond<Unit>(
                 PacketError(
-                    PacketError.Level.ERROR,
-                    PacketError.Code.ERROR_IN_DATA,
+                    ErrorLevel.ERROR,
+                    ErrorCode.ERROR_IN_DATA,
                     "Error while saving data in $scope for $holderId ($dataStr)"
                 )
             )
@@ -237,6 +239,16 @@ class DefaultNode(
         }.awaitAll()
     }
 
+    suspend inline fun SessionsService.requestSync(scope: Scope) {
+        val nodes = getNodes(scope)
+
+        nodes.map {
+            nodesService.syncScope.async {
+                it.requestScopeSync(scope)
+            }
+        }.awaitAll()
+    }
+
     suspend fun processRequestLeaderboardPacket(context: IncomingContext<PacketRequestLeaderboard>) {
         logger.info("Processing leaderboard packet")
         val packet = context.packet
@@ -258,7 +270,7 @@ class DefaultNode(
             try {
                 scope.getTopPosition(it, field)
             } catch (_: NumberFormatException) {
-                context.respondError(PacketError.Code.FIELD_IS_NOT_NUMBER)
+                context.respondError(ErrorCode.FIELD_IS_NOT_NUMBER)
                 return
             }
         }
@@ -283,7 +295,7 @@ class DefaultNode(
         val entry = try {
             scope.getTopPosition(holderId, field)
         } catch (_: NumberFormatException) {
-            context.respondError(PacketError.Code.FIELD_IS_NOT_NUMBER)
+            context.respondError(ErrorCode.FIELD_IS_NOT_NUMBER)
             return
         }
 

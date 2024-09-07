@@ -15,19 +15,42 @@ import dev.nikdekur.nexushub.util.NexusData
 
 interface Scope : Snowflake<String> {
 
+    /**
+     * Load the data for the given holder
+     *
+     * @param holderId holder to load the data for
+     * @return the data for the given holder or empty data if not found
+     */
     suspend fun loadData(holderId: String): NexusData
+
+    /**
+     * Set the data for the given holder
+     *
+     * Should be suspended until the data is saved
+     *
+     * @param holderId holder to set the data for
+     * @param data data to set
+     */
     suspend fun setData(holderId: String, data: NexusData)
-    suspend fun getLeaderboard(path: String, startFrom: Int, limit: Int): Leaderboard
+
+    /**
+     * Get the leaderboard for the given path
+     *
+     * @param field path to get the leaderboard for. Dots separate keys
+     * @param startFrom start from the given position
+     * @param limit limit the number of entries to get
+     * @return the leaderboard for the given path
+     */
+    suspend fun getLeaderboard(field: String, startFrom: Int, limit: Int): Leaderboard
 
     /**
      * Get the top position in the leaderboard for the given field of the given holder
-     *
-     * May throw [NumberFormatException] if the field is not a number
      *
      * @param field field to get the top position for
      * @param holderId holder to get the top position for
      * @return the top position in the leaderboard for the given field of the given holder (where 0 is max)
      * or null if not found
+     * @throws NumberFormatException if the field is not a number
      */
     suspend fun getTopPosition(holderId: String, field: String): LeaderboardEntry?
 }

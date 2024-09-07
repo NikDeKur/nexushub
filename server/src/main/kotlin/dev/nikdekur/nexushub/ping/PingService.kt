@@ -6,8 +6,11 @@
  * Copyright (c) 2024-present "Nik De Kur"
  */
 
-package dev.nikdekur.nexushub.root
+package dev.nikdekur.nexushub.ping
 
-import dev.nikdekur.nexushub.service.NexusHubService
+import kotlin.time.Duration
 
-interface RootAccessService : NexusHubService
+interface PingService {
+
+    val pingInterval: Duration
+}

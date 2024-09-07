@@ -17,7 +17,7 @@ import dev.nikdekur.nexushub.boot.Environment
 import dev.nikdekur.nexushub.dataset.DataSetService
 import dev.nikdekur.nexushub.dataset.config.ConfigDataSetService
 import dev.nikdekur.nexushub.dataset.get
-import dev.nikdekur.nexushub.network.Routing
+import dev.nikdekur.nexushub.ktor.Routing
 import dev.nikdekur.nexushub.storage.mongo.MongoStorageService
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
