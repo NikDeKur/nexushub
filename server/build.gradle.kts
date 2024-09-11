@@ -1,7 +1,8 @@
 @file:Suppress("PropertyName")
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.kotlin.dsl.libs
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 
 plugins {
@@ -25,47 +26,72 @@ application {
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }
 
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
-
-dependencies {
-    implementation(project(":common"))
-    implementation(project(":ktor-utils"))
-
-    implementation(libs.logback)
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.netty)
-    implementation(libs.ktor.server.websockets)
-    implementation(libs.ktor.server.content.negotiation)
-    implementation(libs.ktor.server.html.builder)
-    implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.gson)
-    implementation(libs.ndkore)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotlinx.serialization.barray)
-    implementation(libs.yamlkt)
-    implementation(libs.mongodb)
-    implementation(libs.bouncycastle.prov)
-    implementation(libs.bouncycastle.pkix)
-    implementation(libs.guava)
-
-    testImplementation(kotlin("test"))
-    testImplementation(libs.kotlinx.serialization.barray)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.logback)
-}
-
-val javaVersion = JavaVersion.VERSION_11
-java {
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
+allprojects {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
 }
 
 
-tasks.test {
-    useJUnitPlatform()
+subprojects {
+
+    apply {
+        plugin(rootProject.libs.plugins.kotlinJvm.get().pluginId)
+        plugin(rootProject.libs.plugins.kotlinSerialization.get().pluginId)
+    }
+
+    val libs = rootProject.libs
+
+    dependencies {
+        implementation(project(":common"))
+        implementation(project(":ktor-utils"))
+
+        implementation(libs.ndkore)
+        implementation(libs.kotlinx.coroutines)
+        implementation(libs.kotlinx.serialization)
+        implementation(libs.slf4j.api)
+
+        val path = project.path
+        if (!path.contains(":server:core:api")) {
+            implementation(project(":server:core:api"))
+            testImplementation(project(":server:core:api"))
+
+            if (path.contains("impl")) {
+                implementation(project(":server:common:dataset:api"))
+                testImplementation(project(":server:common:dataset:api"))
+            }
+        }
+
+        if (path.endsWith(":impl")) {
+            val apiPath = path.replace(":impl", ":api")
+            implementation(project(apiPath))
+            testImplementation(project(apiPath))
+        }
+
+        testImplementation(kotlin("test"))
+        testImplementation(libs.kotlinx.serialization.barray)
+        testImplementation(libs.kotlinx.coroutines.test)
+        testImplementation(libs.logback)
+    }
+
+    tasks.test {
+        useJUnitPlatform()
+    }
+
+    val javaVersion = JavaVersion.VERSION_11
+    kotlin {
+        jvmToolchain {
+            languageVersion.set(JavaLanguageVersion.of(javaVersion.majorVersion))
+        }
+    }
+
+    // Remove Java compatibility made by params non-null assertions
+    tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
+        compilerOptions {
+            freeCompilerArgs.addAll("-Xno-param-assertions", "-Xno-call-assertions")
+        }
+    }
 }
 
 
@@ -78,17 +104,15 @@ license {
     ignoreFailures = true
 }
 
-
-// Remove Java compatibility made by params non-null assertions
-tasks.withType<KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xno-param-assertions", "-Xno-call-assertions")
-    }
-}
-
 tasks.withType<ShadowJar> {
     archiveClassifier.set("")
     archiveFileName.set("${project.name}-${project.version}.jar")
+
+    // Include all output directories and runtime classpath from all subprojects
+    allprojects.forEach { project ->
+        from(project.sourceSets.main.get().output)
+        configurations.add(project.configurations.runtimeClasspath.get())
+    }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

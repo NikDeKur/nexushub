@@ -8,7 +8,7 @@
 
 package dev.nikdekur.nexushub.event
 
-import dev.nikdekur.nexushub.util.CloseCode
+import dev.nikdekur.nexushub.network.CloseCode
 
 sealed class Close : Event() {
 

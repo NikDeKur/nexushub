@@ -17,11 +17,11 @@ import dev.nikdekur.nexushub.event.Event
 import dev.nikdekur.nexushub.event.NetworkEvent
 import dev.nikdekur.nexushub.ktor.KtorPacketControllerTalker
 import dev.nikdekur.nexushub.network.Address
+import dev.nikdekur.nexushub.network.CloseCode
 import dev.nikdekur.nexushub.network.dsl.PacketReaction
 import dev.nikdekur.nexushub.network.timeout.SchedulerTimeoutService
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.*
-import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.*

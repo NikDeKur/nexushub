@@ -1,0 +1,28 @@
+<!--
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+    Copyright (c) 2024-present "Nik De Kur"
+-->
+
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%d{YYYY-MM-dd HH:mm:ss.SSS}] [%thread] [%level] [%logger{36}]: %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="TRACE">
+        <appender-ref ref="STDOUT"/>
+    </root>
+    <logger name="org.eclipse.jetty" level="INFO"/>
+    <logger name="io.netty" level="INFO"/>
+    <logger name="org.mongodb.driver.client" level="WARN"/>
+    <logger name="org.mongodb.driver.connection" level="WARN"/>
+    <logger name="org.mongodb.driver.cluster" level="WARN"/>
+    <logger name="org.mongodb.driver.protocol.command" level="WARN"/>
+    <logger name="org.mongodb.driver.operation" level="WARN"/>
+    <logger name="dev.nikdekur.nexushub.AbstractNexusHubServer" level="WARN"/>
+    <logger name="dev.nikdekur.nexushub.LightWeightNexusHubServer" level="WARN"/>
+    <logger name="dev.nikdekur.ndkore.service.manager.RuntimeServicesManager" level="WARN"/>
+</configuration>

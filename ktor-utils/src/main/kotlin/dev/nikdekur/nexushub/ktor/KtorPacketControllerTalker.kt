@@ -11,10 +11,10 @@
 package dev.nikdekur.nexushub.ktor
 
 import dev.nikdekur.nexushub.network.Address
+import dev.nikdekur.nexushub.network.CloseCode
 import dev.nikdekur.nexushub.network.RuntimePacketController
 import dev.nikdekur.nexushub.network.talker.PacketControllerTalker
 import dev.nikdekur.nexushub.network.timeout.TimeoutService
-import dev.nikdekur.nexushub.util.CloseCode
 import io.ktor.websocket.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 

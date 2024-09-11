@@ -10,11 +10,11 @@ package dev.nikdekur.nexushub.network.talker
 
 import dev.nikdekur.ndkore.scheduler.impl.CoroutineScheduler
 import dev.nikdekur.nexushub.network.Address
+import dev.nikdekur.nexushub.network.CloseCode
 import dev.nikdekur.nexushub.network.RuntimePacketController
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.timeout.SchedulerTimeoutService
 import dev.nikdekur.nexushub.packet.Packet
-import dev.nikdekur.nexushub.util.CloseCode
 import kotlinx.coroutines.Dispatchers
 import java.util.function.Predicate
 

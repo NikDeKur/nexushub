@@ -8,7 +8,7 @@
 
 package dev.nikdekur.nexushub.network.talker
 
-import dev.nikdekur.nexushub.util.CloseCode
+import dev.nikdekur.nexushub.network.CloseCode
 import org.slf4j.LoggerFactory
 
 abstract class AbstractTalker : Talker {

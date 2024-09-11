@@ -9,11 +9,11 @@
 package dev.nikdekur.nexushub.network.talker
 
 import dev.nikdekur.nexushub.network.Address
+import dev.nikdekur.nexushub.network.CloseCode
 import dev.nikdekur.nexushub.network.dsl.IncomingContext
 import dev.nikdekur.nexushub.network.dsl.PacketReactionBuilder
 import dev.nikdekur.nexushub.network.transmission.PacketTransmission
 import dev.nikdekur.nexushub.packet.Packet
-import dev.nikdekur.nexushub.util.CloseCode
 import java.util.function.Predicate
 
 /**
